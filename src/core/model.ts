@@ -100,6 +100,22 @@ export interface DrawState {
   h: number;
 }
 
+/** Viewport-space state of a `position: sticky` box. */
+export interface StickInfo {
+  /** Screen position at capture time. */
+  x0: number;
+  y0: number;
+  /** Pin lines, null when the box does not stick on that axis. */
+  left: number | null;
+  top: number | null;
+  /** Screen position of the containing block's bottom-right corner. */
+  right: number;
+  bottom: number;
+  /** Scroll offset at capture time. */
+  sx0: number;
+  sy0: number;
+}
+
 export interface BaseItem {
   // ---- identity, set by the snapshotter
   id: number;
@@ -128,6 +144,8 @@ export interface BaseItem {
   blend?: string;
   /** Signature used to detect duplicate siblings. */
   sig: string;
+  /** Sticky box: rest position and clamp bounds, in viewport coordinates. */
+  stick?: StickInfo;
 
   // ---- runtime, attached while the build progresses
   task?: Task | null;
@@ -331,6 +349,15 @@ export interface CoreOptions {
   autoScroll?: boolean;
   /** Build speed multiplier. Defaults to 1. */
   speed?: number;
+  /** Maximum captured page height, in px. Defaults to 40000. */
+  maxHeight?: number;
+  /** Maximum number of captured items. Defaults to 4000. */
+  maxItems?: number;
+  /** Image source for elements the engine cannot clone. */
+  placeholder?: (element: Element) => string | null | undefined;
   /** Called once every layer is rebuilt. */
   onComplete?: () => void;
 }
+
+/** Subset of {@link CoreOptions} that drives a snapshot. */
+export type CaptureLimits = Pick<CoreOptions, "maxHeight" | "maxItems" | "placeholder">;

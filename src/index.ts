@@ -13,6 +13,16 @@ export interface SwarmOptions {
   autoScroll?: boolean;
   /** Build speed multiplier. Defaults to 1. */
   speed?: number;
+  /** Maximum captured page height, in px. Defaults to 40000. */
+  maxHeight?: number;
+  /** Maximum number of captured items. Defaults to 4000. */
+  maxItems?: number;
+  /**
+   * Image source (URL, data URL or blob URL) used for elements the engine
+   * cannot clone: canvas, video, iframe, embed, object. Return null to fall
+   * back to the built-in placeholder.
+   */
+  placeholder?: (element: Element) => string | null | undefined;
   /** Called once every layer has been rebuilt. */
   onComplete?: () => void;
   /** Called after the overlay has been removed. */
@@ -70,6 +80,9 @@ class SwarmImpl implements Swarm {
     core.start({
       autoScroll: this.options.autoScroll ?? false,
       speed: this.options.speed ?? 1,
+      maxHeight: this.options.maxHeight,
+      maxItems: this.options.maxItems,
+      placeholder: this.options.placeholder,
       onComplete: this.options.onComplete,
     });
   }

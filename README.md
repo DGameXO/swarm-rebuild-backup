@@ -156,14 +156,17 @@ Rects are crosshair-dragged, text is typed with a caret, media sweeps in.
 
 ### `createSwarm(options?): Swarm`
 
-| Option       | Type                              | Default           |                                    |
-| ------------ | --------------------------------- | ----------------- | ---------------------------------- |
-| `trigger`    | `"manual" \| "load" \| "visible"` | `"manual"`        | When the effect starts             |
-| `target`     | `Element \| string`               | `documentElement` | Anchor observed by `"visible"`     |
-| `autoScroll` | `boolean`                         | `false`           | Let the swarm travel down the page |
-| `speed`      | `number`                          | `1`               | Build speed multiplier             |
-| `onComplete` | `() => void`                      | —                 | Every layer rebuilt                |
-| `onDestroy`  | `() => void`                      | —                 | Overlay removed                    |
+| Option        | Type                              | Default           |                                    |
+| ------------- | --------------------------------- | ----------------- | ---------------------------------- |
+| `trigger`     | `"manual" \| "load" \| "visible"` | `"manual"`        | When the effect starts             |
+| `target`      | `Element \| string`               | `documentElement` | Anchor observed by `"visible"`     |
+| `autoScroll`  | `boolean`                         | `false`           | Let the swarm travel down the page |
+| `speed`       | `number`                          | `1`               | Build speed multiplier             |
+| `maxHeight`   | `number`                          | `40000`           | Captured page height cap, in px    |
+| `maxItems`    | `number`                          | `4000`            | Captured item cap                  |
+| `placeholder` | `(el: Element) => string \| null` | —                 | Image for canvas, video, iframe    |
+| `onComplete`  | `() => void`                      | —                 | Every layer rebuilt                |
+| `onDestroy`   | `() => void`                      | —                 | Overlay removed                    |
 
 ### Instance
 
@@ -301,12 +304,24 @@ uses it, and degrades silently.
 
 ## Limitations
 
-- **Fixed and sticky elements** scroll away with the page during the rebuild.
+- **Sticky elements** scroll with the page, stop at their `top` and `left`
+  offsets and leave with their container, like the real thing. Only `top` and
+  `left` are read. Fixed elements are pinned.
 - **Canvas, playing video and cross-origin iframes** cannot be cloned. They fall
-  back to a grey placeholder unless the host supplies a screenshot.
+  back to a grey placeholder unless the host supplies an image through the
+  `placeholder` option.
 - **Very long pages** are capped at 40 000 px of world height and 4 000 items.
+  Both caps are configurable with `maxHeight` and `maxItems`.
 - **Animations freeze** at the moment the snapshot is taken.
 - **Web components** are rebuilt as plain styled elements; their state is not replayed.
+
+---
+
+## Contributing
+
+Bug reports and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md)
+first, and report security issues privately as described in
+[SECURITY.md](SECURITY.md).
 
 ---
 

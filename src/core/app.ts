@@ -103,7 +103,7 @@ export class App {
     }
     let model;
     try {
-      model = captureModel(this.env, shot);
+      model = captureModel(this.env, shot, this.options);
     } catch (err) {
       console.error("[swarm-rebuild] capture failed", err);
       model = {

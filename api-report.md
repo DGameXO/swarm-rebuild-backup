@@ -17,6 +17,9 @@ export interface SwarmOptions {
     target?: Element | string;
     autoScroll?: boolean;
     speed?: number;
+    maxHeight?: number;
+    maxItems?: number;
+    placeholder?: (element: Element) => string | null | undefined;
     onComplete?: () => void;
     onDestroy?: () => void;
 }

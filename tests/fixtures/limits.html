@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>limits fixture</title>
+    <style>
+      body { margin: 0; font: 16px/1.5 system-ui; background: #0b0e14; color: #e9edf6; }
+      section { padding: 40px; border-bottom: 1px solid #222; }
+      canvas { display: block; width: 320px; height: 120px; background: #131a2a; }
+    </style>
+  </head>
+  <body>
+    <section><h1>Limits</h1><p>Canvas and iframe live below.</p></section>
+    <section><canvas id="c" width="320" height="120"></canvas></section>
+    <section><iframe src="about:blank" width="320" height="120" title="frame"></iframe></section>
+    <section><div style="height: 600px">tall</div></section>
+    <section>
+      <div class="cards">
+        <p>card one</p><p>card two</p><p>card three</p>
+        <p>card four</p><p>card five</p><p>card six</p>
+        <p>card seven</p><p>card eight</p>
+      </div>
+    </section>
+    <script type="module">
+      import { createSwarm } from "../../dist/index.js";
+
+      const c = document.querySelector("#c").getContext("2d");
+      c.fillStyle = "#ff5c38";
+      c.fillRect(10, 10, 120, 100);
+
+      window.__swarm = createSwarm({
+        trigger: "manual",
+        autoScroll: true,
+        maxItems: 12,
+        placeholder: (el) =>
+          "data:image/svg+xml," +
+          encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="120">' +
+              '<rect width="320" height="120" fill="#2b6cff"/>' +
+              `<text x="16" y="68" font-family="system-ui" font-size="18" fill="#fff">${el.localName} placeholder</text>` +
+              "</svg>",
+          ),
+      });
+    </script>
+  </body>
+</html>

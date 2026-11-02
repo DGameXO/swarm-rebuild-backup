@@ -236,6 +236,21 @@ export class View {
     return n;
   }
 
+  /** Re-pin a sticky box: scroll with the world, stop at its pin lines, leave with the container. */
+  placeSticky(it: Item, sx: number, sy: number): void {
+    const s = it.stick!;
+    const dy = sy - s.sy0;
+    const dx = sx - s.sx0;
+    const y =
+      s.top == null ? s.y0 - dy : Math.min(Math.max(s.y0 - dy, s.top), s.bottom - dy - it.h);
+    const x =
+      s.left == null ? s.x0 - dx : Math.min(Math.max(s.x0 - dx, s.left), s.right - dx - it.w);
+    if (x === it.x && y === it.y) return;
+    it.x = x;
+    it.y = y;
+    it.v++;
+  }
+
   renderItem(it: Item) {
     const tw = it.twinOf;
     if (tw && tw.kind === "text" && it.kind === "text" && it._tv !== tw.v) {
@@ -552,7 +567,11 @@ export class View {
         for (const d of this.backdrops) d.style.opacity = String(o);
       }
     }
-    if (E.items) for (const it of E.items) this.renderItem(it);
+    if (E.items)
+      for (const it of E.items) {
+        if (it.stick) this.placeSticky(it, E.vp.sx, E.vp.sy);
+        this.renderItem(it);
+      }
     this.renderOverlay(E);
     this.renderCursors(E);
     this.renderRulers(E);

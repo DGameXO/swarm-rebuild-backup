@@ -1,0 +1,36 @@
+name: Feature request
+description: Propose an option, an effect, or a page the swarm should handle better.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do that the library does not support?
+      placeholder: My portfolio uses a horizontal gallery, and the swarm ignores it.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How should it work? An API sketch helps.
+      placeholder: |
+        ```ts
+        createSwarm({ target: "#gallery" });
+        ```
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Workarounds you tried, or other designs you considered.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and the README limitations.
+          required: true
+        - label: I can help test this.

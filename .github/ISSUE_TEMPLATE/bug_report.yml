@@ -1,0 +1,66 @@
+name: Bug report
+description: Something rebuilt the wrong way, or did not rebuild at all.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. A page that reproduces the bug is worth more than
+        a long description: if you can, publish a minimal page or a gist.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did the swarm do, and what did you expect instead?
+      placeholder: The overlay removes the sticky header after the first scroll.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: URL, gist, or the smallest snippet that shows the bug.
+      placeholder: |
+        1. Open https://example.com
+        2. Run createSwarm({ trigger: "load" })
+        3. Scroll down while it builds
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: swarm-rebuild version
+      placeholder: 0.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome / Edge
+        - Firefox
+        - Safari
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: macOS 15, Windows 11, Ubuntu 24.04
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Any error or warning printed by the page.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues.
+          required: true
+        - label: This is not a security issue (those go through SECURITY.md).
+          required: true

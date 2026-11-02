@@ -1,3 +1,4 @@
 dist
 node_modules
 src/core/style.ts
+api-report.md

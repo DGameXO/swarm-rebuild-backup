@@ -11,6 +11,7 @@ import {
 import { alphaOf, clamp, intersect, ltrb } from "./utils.js";
 import type {
   Backdrop,
+  CaptureLimits,
   Clip,
   Env,
   Group,
@@ -21,6 +22,7 @@ import type {
   Point,
   Rect,
   Shot,
+  StickInfo,
   Task,
   TaskSpec,
   TextItem,
@@ -61,10 +63,12 @@ import {
   sameColor,
   styleString,
 } from "./clone.js";
-export function captureModel(env: Env, shot: Shot | null): Model {
+export function captureModel(env: Env, shot: Shot | null, limits: CaptureLimits = {}): Model {
   const { ox, oy, sx, sy, vw, vh } = env.geom();
   const docW = Math.max(env.scrollWidth(), vw);
-  const docH = Math.min(Math.max(env.scrollHeight(), vh), MAX_WORLD_H);
+  const maxHeight = limits.maxHeight ?? MAX_WORLD_H;
+  const maxItems = limits.maxItems ?? MAX_ITEMS;
+  const docH = Math.min(Math.max(env.scrollHeight(), vh), maxHeight);
   const items: Item[] = [];
   const roots: NodeInfo[] = [];
   let order = 0;
@@ -122,6 +126,27 @@ export function captureModel(env: Env, shot: Shot | null): Model {
     it.mode = "own";
     items.push(it);
     return it;
+  }
+
+  // A sticky subtree is captured in viewport coordinates. Every item keeps its
+  // own rest position but shares the parent's pin line and bottom bound, so the
+  // whole box moves as one while the world scrolls.
+  function applyStick(info: StickInfo | null, from: number, to: number): void {
+    if (!info) return;
+    for (let i = from; i < to; i++) {
+      const it = items[i]!;
+      if (it.stick || it.layer !== "over") continue;
+      it.stick = {
+        x0: it.x,
+        y0: it.y,
+        left: info.left == null ? null : info.left + (it.x - info.x0),
+        top: info.top == null ? null : info.top + (it.y - info.y0),
+        right: info.right,
+        bottom: info.bottom,
+        sx0: info.sx0,
+        sy0: info.sy0,
+      };
+    }
   }
 
   function allInline(el: Element): boolean {
@@ -608,10 +633,10 @@ export function captureModel(env: Env, shot: Shot | null): Model {
       const h = m.outerHTML;
       return { el: m, sig: h.length + ":" + h.slice(0, 160) };
     }
-    const imgOf = (src: string, extra: Partial<Item> = {}): { el: Element; sig: string } => {
+    const imgOf = (src: string, extra = ""): { el: Element; sig: string } => {
       const m = document.createElement("img");
       m.src = src;
-      m.setAttribute("style", (extra || "") + "display:block;width:100%;height:100%;");
+      m.setAttribute("style", extra + "display:block;width:100%;height:100%;");
       m.draggable = false;
       return { el: m, sig: src.slice(0, 120) + src.length };
     };
@@ -622,6 +647,8 @@ export function captureModel(env: Env, shot: Shot | null): Model {
       tag === "embed" ||
       tag === "object"
     ) {
+      const custom = limits.placeholder?.(el);
+      if (custom) return imgOf(custom);
       const crop = cropShot(shot, r);
       if (crop) return imgOf(crop);
     }
@@ -809,7 +836,8 @@ export function captureModel(env: Env, shot: Shot | null): Model {
   }
 
   function walk(el: Element, ctx: CaptureCtx, parent: NodeInfo | null): void {
-    if (items.length >= MAX_ITEMS) return;
+    if (items.length >= maxItems) return;
+    const startIndex = items.length;
     const tag = el.localName;
     if (SKIP.has(tag) || el === env.host) return;
     const cs = css(el);
@@ -862,16 +890,29 @@ export function captureModel(env: Env, shot: Shot | null): Model {
     let zTop = ctx.zTop;
     let posd = ctx.posd;
     const pos = cs.position;
+    let stick: StickInfo | null = null;
     if (pos === "fixed" && layer !== "over") {
       layer = "over";
       clip = viewClip;
     } else if (pos === "sticky" && layer === "world") {
-      // stuck (or sitting exactly where it would stick) at the top of its scroller
+      // Sticky boxes live on the screen layer and are re-pinned on every
+      // frame: they scroll until they hit their pin line, then follow the
+      // containing block. Each axis only sticks when its offset is set.
+      layer = "over";
+      clip = viewClip;
       const top = parseFloat(cs.top);
-      if (!isNaN(top) && Math.abs(r.top - oy - top) < 2 && r.height < vh * 0.4) {
-        layer = "over";
-        clip = viewClip;
-      }
+      const left = parseFloat(cs.left);
+      const parentRect = el.parentElement?.getBoundingClientRect();
+      stick = {
+        x0: r.left,
+        y0: r.top,
+        left: cs.left === "auto" || isNaN(left) ? null : left,
+        top: cs.top === "auto" || isNaN(top) ? null : top,
+        right: parentRect ? parentRect.right : r.right,
+        bottom: parentRect ? parentRect.bottom : r.bottom,
+        sx0: sx,
+        sy0: sy,
+      };
     }
     // z-index counts for positioned boxes and for flex/grid items (even when static)
     const pe = el.parentElement;
@@ -916,12 +957,17 @@ export function captureModel(env: Env, shot: Shot | null): Model {
     };
     (parent ? parent.kids : roots).push(node);
 
+    const finish = (): void => {
+      node.end = items.length;
+      applyStick(stick, startIndex, items.length);
+    };
+
     if (REPLACED.has(tag) || FORMS.has(tag)) {
       if (emit) {
         if (FORMS.has(tag)) emitForm(el, cs, r, { ...ctx, layer, clip, op }, keyFn());
         else emitMedia(el, cs, r, { ...ctx, layer, clip, op }, keyFn());
       }
-      node.end = items.length;
+      finish();
       return;
     }
 
@@ -951,7 +997,7 @@ export function captureModel(env: Env, shot: Shot | null): Model {
         b: r.bottom - bb,
       }) as Clip;
       if (!kidClip) {
-        node.end = items.length;
+        finish();
         return;
       }
     }
@@ -962,7 +1008,7 @@ export function captureModel(env: Env, shot: Shot | null): Model {
     // Closed <details> and content-visibility:hidden still report real boxes for
     // content that isn't painted, so only the summary (or nothing) gets built.
     if (cs.contentVisibility === "hidden") {
-      node.end = items.length;
+      finish();
       return;
     }
     let kids = kidsOf(el);
@@ -1012,7 +1058,7 @@ export function captureModel(env: Env, shot: Shot | null): Model {
 
     if (allRun && anyText && !isScroller) {
       if (visible && sized && emit) emitLeaf(el, cs, r, { ...kctx, layer }, keyFn());
-      node.end = items.length;
+      finish();
       return;
     }
     // (text leaves carry their pseudos inside the clone instead)
@@ -1043,7 +1089,7 @@ export function captureModel(env: Env, shot: Shot | null): Model {
     });
     flush();
     afterPseudo();
-    node.end = items.length;
+    finish();
   }
 
   const rootLayer = env.isRoot ? "world" : "under";
