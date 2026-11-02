@@ -28,8 +28,6 @@
   <a href="demo/magazine.html">Magazine</a>
   &nbsp;·&nbsp;
   <a href="demo/saas.html">Dashboard</a>
-  &nbsp;·&nbsp;
-  <a href="demo/complex.html">Stress fixture</a>
 </p>
 
 ---
@@ -202,7 +200,6 @@ demo/
   showcase.html       editorial studio site: photos, serif type, full layout
   magazine.html       print-inspired issue: giant type, grid, red accent
   saas.html           product dashboard: sidebar, KPI cards, charts, table
-  complex.html        stress fixture: sticky header, cards, table, form
 scripts/
   api-report.mjs      public API report, built on the TypeScript 7 native API
   serve.mjs           static server used by the e2e suite
