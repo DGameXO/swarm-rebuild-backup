@@ -1128,7 +1128,18 @@ export function captureModel(env: Env, shot: Shot | null): Model {
     tasks.push(t);
     return t;
   };
-  const KIND_TASK = { rect: "rect", image: "image", text: "text", line: "line" };
+  const specFor = (it: Item): TaskSpec => {
+    switch (it.kind) {
+      case "rect":
+        return { type: "rect", it };
+      case "text":
+        return { type: "text", it };
+      case "image":
+        return { type: "image", it };
+      case "line":
+        return { type: "line", it };
+    }
+  };
   for (const it of items) {
     if (it.copyOf) continue;
     if (it.twinOf) {
@@ -1137,12 +1148,7 @@ export function captureModel(env: Env, shot: Shot | null): Model {
     }
     const deps = it.parentBox && it.parentBox.final ? it.parentBox.final : [];
     const y = it.kind === "text" ? it.tb!.y : it.y;
-    it.task = mk(
-      y,
-      { type: KIND_TASK[it.kind as keyof typeof KIND_TASK] as TaskSpec["type"], it },
-      deps,
-      it.layer,
-    );
+    it.task = mk(y, specFor(it), deps, it.layer);
     it.final = [it.task];
   }
   // inner groups first so outer copies can wait for them
@@ -1166,13 +1172,15 @@ export function captureModel(env: Env, shot: Shot | null): Model {
         it.dupTask = task;
         it.final = [task];
         const m = it.copyOf!;
-        let type: "edit" | "swap" | "restyle" | null = null;
-        if (it.kind === "text" && it.sig !== m.sig) type = "edit";
-        else if (it.kind === "image" && it.sig !== m.sig) type = "swap";
-        else if (it.kind === "rect" && it.sig !== m.sig) type = "restyle";
-        if (type) {
-          it.editTask = mk(it.kind === "text" ? it.tb!.y : it.y, { type, it }, [task], it.layer);
-          it.final = [task, it.editTask];
+        if (it.sig !== m.sig) {
+          if (it.kind === "text") {
+            it.editTask = mk(it.tb.y, { type: "edit", it }, [task], it.layer);
+          } else if (it.kind === "image") {
+            it.editTask = mk(it.y, { type: "swap", it }, [task], it.layer);
+          } else if (it.kind === "rect") {
+            it.editTask = mk(it.y, { type: "restyle", it }, [task], it.layer);
+          }
+          if (it.editTask) it.final = [task, it.editTask];
         }
       }
       return { items: its, box: c.box, task };
@@ -1257,7 +1265,7 @@ export function captureModel(env: Env, shot: Shot | null): Model {
     }
   }
   for (const it of items)
-    if (it.kind === "text" && it.task && (it.fs ?? 0) >= 28 && it.tb!.h < 400)
+    if (it.kind === "text" && it.task?.spec.type === "text" && it.fs >= 28 && it.tb.h < 400)
       it.task.spec.grow = true;
   // deps always have lower ids, so one reverse pass propagates the earliest need
   for (const t of tasks) t.gate = t.y;

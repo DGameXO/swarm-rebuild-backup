@@ -223,18 +223,22 @@ export interface Task {
 }
 
 /** A task carries the choreography for one item, group or guide. */
-export interface TaskSpec {
-  type: "rect" | "text" | "image" | "line" | "guide" | "dup" | "edit" | "swap" | "restyle";
-  it?: Item;
-  g?: Group;
+interface SpecBase {
+  /** Guide this item snaps to while it is placed. */
   snap?: Group;
   snapDx?: number;
-  grow?: boolean;
-  drag?: boolean;
-  bend?: number;
-  speed?: number;
-  [extra: string]: unknown;
 }
+
+export type TaskSpec =
+  | (SpecBase & { type: "rect"; it: RectItem })
+  | (SpecBase & { type: "image"; it: ImageItem })
+  | (SpecBase & { type: "line"; it: LineItem })
+  | (SpecBase & { type: "text"; it: TextItem; grow?: boolean })
+  | (SpecBase & { type: "edit"; it: TextItem })
+  | (SpecBase & { type: "swap"; it: RectItem | ImageItem })
+  | (SpecBase & { type: "restyle"; it: RectItem | ImageItem })
+  | (SpecBase & { type: "guide"; g: Group })
+  | (SpecBase & { type: "dup"; g: Group; k: number });
 
 export interface OverlayBox {
   t: "box";
