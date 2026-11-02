@@ -1,5 +1,6 @@
 import { COLORS, FLOCK_AGENTS, INTRO_AGENTS, MAX_AGENTS, MIN_AGENTS, NAMES } from "./constants.js";
 import { bump, clamp, easeInOut, easeOut, rand } from "./utils.js";
+import { bounds, spacing, underline, unionBounds } from "./geometry.js";
 interface MoveOptions {
   speed?: number;
   bend?: number;
@@ -19,7 +20,6 @@ import type {
   Model,
   Overlay,
   OverlayBox,
-  OverlayMeasure,
   Point,
   Rect,
   Task,
@@ -174,58 +174,8 @@ export class Engine {
     if (this.onStart) this.onStart();
   }
 
-  bounds(it: Item): Rect {
-    if (it.kind === "text") {
-      const tb = it.tb!;
-      const lh = it.lh!;
-      let h = tb.h;
-      if (it.editing && !it.selAll && it.total) {
-        const lines = Math.max(1, Math.round(tb.h / lh));
-        h = Math.min(tb.h, Math.max(lh, Math.ceil((it.shown! / it.total) * lines) * lh));
-      }
-      const s = it.scale;
-      const ax =
-        it.align === "center"
-          ? (tb.w * (1 - s)) / 2
-          : it.align === "right" || it.align === "end"
-            ? tb.w * (1 - s)
-            : 0;
-      return { x: tb.x + it.dx + ax, y: tb.y + it.dy, w: tb.w * s, h: h * s };
-    }
-    if (it.kind === "line") {
-      return { x: it.x + it.dx, y: it.y + it.dy, w: it.w, h: it.h };
-    }
-    return {
-      x: it.x + it.dx,
-      y: it.y + it.dy,
-      w: it.draw ? it.draw.w : it.w,
-      h: it.draw ? it.draw.h : it.h,
-    };
-  }
-
-  unionBounds(list: Item[]): Rect {
-    const bs = list.map((it) => this.bounds(it));
-    const x = Math.min(...bs.map((b) => b.x));
-    const y = Math.min(...bs.map((b) => b.y));
-    return {
-      x,
-      y,
-      w: Math.max(...bs.map((b) => b.x + b.w)) - x,
-      h: Math.max(...bs.map((b) => b.y + b.h)) - y,
-    };
-  }
-
-  underline(it: TextItem, b: Rect) {
-    return {
-      x: b.x,
-      y: b.y + (it.lh! * 0.5 + it.fs! * 0.42) * it.scale,
-      w: Math.min(b.w, it.tb!.w * it.scale),
-      h: 0,
-    };
-  }
-
   selection(it: Item, extra?: Record<string, unknown>): OverlayBox {
-    const b = this.bounds(it);
+    const b = bounds(it);
     return Object.assign(
       {
         t: "box" as const,
@@ -233,7 +183,7 @@ export class Engine {
         handles: true,
         badge: `${Math.round(b.w)} × ${Math.round(b.h)}`,
         rulerLines: true,
-        underline: it.kind === "text" ? this.underline(it, b) : undefined,
+        underline: it.kind === "text" ? underline(it, b) : undefined,
       },
       extra,
     );
@@ -798,7 +748,7 @@ export class Engine {
       }
     }
     if (grow) it.scale = Math.min(1, 18 / it.fs!);
-    const b0 = this.bounds(it);
+    const b0 = bounds(it);
     c.shape = "cross";
     yield* this.moveTo(c, { x: b0.x, y: b0.y });
     const lineH = Math.min(b0.h, it.lh! * it.scale);
@@ -835,7 +785,7 @@ export class Engine {
     it.shown = 0;
     bump(it);
     c.shape = "ibeam";
-    c.ov = () => [{ t: "box", b: this.bounds(it) }];
+    c.ov = () => [{ t: "box", b: bounds(it) }];
     yield* this.moveTo(c, { x: c.x + rand(-30, 10), y: c.y + rand(10, 30) }, { speed: 1.5 });
     yield* this.type(it);
     yield* this.wait(0.12);
@@ -861,7 +811,7 @@ export class Engine {
       if (guide.task!.state !== "done") guide = null;
     }
     if (guide) {
-      const u = this.bounds(it);
+      const u = bounds(it);
       const a = {
         x: u.x + Math.min(u.w * 0.4, 60) + rand(-6, 6),
         y: u.y + Math.min(u.h * 0.5, 22),
@@ -956,7 +906,7 @@ export class Engine {
     const cand = [g.src!, ...g.dst!.filter((d) => d.task.state === "done")];
     const dd = (a: { box?: Rect }) => Math.hypot(a.box!.x - dst.box!.x, a.box!.y - dst.box!.y);
     for (const s of cand) if (dd(s) < dd(src)) src = s;
-    const sb = this.unionBounds(src.items);
+    const sb = unionBounds(src.items);
     c.shape = "arrow";
     const u = {
       x: sb.x + Math.min(sb.w * 0.45, 70) + rand(-8, 8),
@@ -989,12 +939,12 @@ export class Engine {
     }
     const m = { x: u.x - ox, y: u.y - oy };
     c.ov = () => {
-      const cb = this.unionBounds(dst.items);
+      const cb = unionBounds(dst.items);
       const h: Overlay[] = [
         { t: "box", b: sb, color: "red" },
         { t: "box", b: cb, color: "red" },
       ];
-      const sp = this.spacing(sb, cb);
+      const sp = spacing(sb, cb);
       if (sp) h.push(sp);
       return h;
     };
@@ -1020,7 +970,7 @@ export class Engine {
     yield* this.wait(0.1);
     c.shape = "arrow";
     c.ov = () => {
-      const cb = this.unionBounds(dst.items);
+      const cb = unionBounds(dst.items);
       return [
         { t: "box", b: cb, handles: true, badge: `${Math.round(cb.w)} × ${Math.round(cb.h)}` },
       ];
@@ -1033,38 +983,9 @@ export class Engine {
       }
   }
 
-  spacing(a: Rect, b: Rect): OverlayMeasure | null {
-    const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-    const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
-    if (oy > 0) {
-      const y = Math.max(a.y, b.y) + oy / 2;
-      const [l, r] = a.x < b.x ? [a, b] : [b, a];
-      const gap = r.x - (l.x + l.w);
-      if (gap > 0)
-        return {
-          t: "measure",
-          a: { x: l.x + l.w, y },
-          b: { x: r.x, y },
-          label: String(Math.round(gap)),
-        };
-    } else if (ox > 0) {
-      const x = Math.max(a.x, b.x) + ox / 2;
-      const [t, btm] = a.y < b.y ? [a, b] : [b, a];
-      const gap = btm.y - (t.y + t.h);
-      if (gap > 0)
-        return {
-          t: "measure",
-          a: { x, y: t.y + t.h },
-          b: { x, y: btm.y },
-          label: String(Math.round(gap)),
-        };
-    }
-    return null;
-  }
-
   *editText(c: Agent, it: TextItem): Generator<void, void, number> {
     c.shape = "arrow";
-    const b = this.bounds(it);
+    const b = bounds(it);
     yield* this.moveTo(c, {
       x: b.x + Math.min(b.w * 0.5, 50) + rand(-5, 5),
       y: b.y + Math.min(it.lh!, b.h) * 0.55,
@@ -1076,7 +997,7 @@ export class Engine {
     it.editing = true;
     bump(it);
     c.shape = "ibeam";
-    c.ov = () => [{ t: "box", b: this.bounds(it) }];
+    c.ov = () => [{ t: "box", b: bounds(it) }];
     yield* this.wait(rand(0.2, 0.35));
     it.mode = "own";
     it.selAll = false;
@@ -1096,7 +1017,7 @@ export class Engine {
 
   *restyle(c: Agent, it: RectItem | ImageItem): Generator<void, void, number> {
     c.shape = "arrow";
-    const b = this.bounds(it);
+    const b = bounds(it);
     yield* this.moveTo(c, {
       x: b.x + Math.min(b.w * 0.5, 60) + rand(-6, 6),
       y: b.y + Math.min(b.h * 0.5, 30) + rand(-4, 4),

@@ -187,14 +187,18 @@ src/
     text.ts           text runs, reveal slicing
     env.ts            scroll container detection
     model.ts          Item, Task, Agent, Group, Model
+    geometry.ts       bounds, unions, underline, spacing
     constants.ts      palette, cursor shapes, property lists
-    utils.ts          easing, geometry, colour helpers
+    utils.ts          easing, colour helpers
     style.ts          injected stylesheet
 demo/
   index.html          marketing fixture
   complex.html        stress fixture: sticky header, cards, table, form
 scripts/
   api-report.mjs      public API report, built on the TypeScript 7 native API
+  serve.mjs           static server used by the e2e suite
+tests/
+  rebuild.spec.ts     Playwright: rebuild, hand-off, reduced motion, Esc
 media/
   banner.svg  demo.gif  demo.mp4  poster.png
 .github/
@@ -215,6 +219,7 @@ npm run build           # tsup + declaration emit
 npm run api-report      # regenerate api-report.md
 npm run api-report:check # fail if the public API drifted
 npm run demo            # vite demo
+npm run test:e2e        # Playwright suite
 npm run format          # prettier
 ```
 
