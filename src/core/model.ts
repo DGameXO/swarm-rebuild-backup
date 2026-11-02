@@ -1,12 +1,15 @@
 /**
  * Data model shared by the snapshotter, the renderer and the swarm engine.
  *
- * Items, tasks and groups are deliberately open bags: the original engine
- * attaches per-kind fields (pen points, media sources, duplicate masters) as
- * the build progresses. The named fields below are the ones the whole engine
- * relies on; the index signature keeps the per-kind extras honest without
- * pretending every variant has the same shape.
+ * Every field is typed. Kind-specific fields are optional on the shared
+ * interface: a rect has no text runs, a line has no media element. The
+ * snapshotter only ever produces the fields documented under each kind.
  */
+
+export interface Point {
+  x: number;
+  y: number;
+}
 
 export interface Rect {
   x: number;
@@ -40,7 +43,7 @@ export interface PageBackground {
   from: Element | null;
 }
 
-/** Either the click-time screenshot or the cropped bitmap handed to the snapshotter. */
+/** Click-time screenshot used for pixels the DOM cannot give back. */
 export interface Shot {
   src?: string;
   at?: Geometry;
@@ -65,8 +68,43 @@ export interface Env {
 
 export type Layer = "world" | "under" | "over";
 
+export type ItemKind = "rect" | "text" | "image" | "line";
+
+/** One unit of the text reveal: a character run or an atomic box. */
+export interface TextUnit {
+  t?: Text;
+  e?: Element;
+  s?: string;
+  len: number;
+  box: HTMLElement | null;
+  on?: boolean;
+}
+
+export type ItemNode = HTMLElement & {
+  _st?: ReturnType<typeof setTimeout>;
+  _css?: string;
+  _src?: unknown;
+  _shape?: string;
+  _hx?: number;
+  _hy?: number;
+};
+
+export type CursorNode = HTMLElement & {
+  _shape?: string;
+  _hx?: number;
+  _hy?: number;
+};
+
+export interface DrawState {
+  w: number;
+  h: number;
+}
+
 export interface Item {
+  // ---- identity, set by the snapshotter
   id: number;
+  kind: ItemKind;
+  /** Bumped whenever the item changes, read by the renderer. */
   v: number;
   rv: number;
   vis: boolean;
@@ -74,35 +112,108 @@ export interface Item {
   dy: number;
   scale: number;
   mode: string;
-  kind: "rect" | "text" | "media" | "line" | string;
+
+  // ---- geometry, document or layer coordinates
   x: number;
   y: number;
   w: number;
   h: number;
+
+  // ---- stacking and clipping
   layer: Layer;
-  key: string;
+  key: string | number;
   op: number;
   clip: Clip | null;
   parentBox: Item | null;
   blend: string;
-  tb: Rect;
-  fs: number;
-  lh: number;
-  align: string;
-  text: string;
+  /** Signature used to detect duplicate siblings. */
   sig: string;
-  [extra: string]: any;
+
+  // ---- rect
+  css?: string;
+  radius?: string;
+  big?: boolean;
+  styled?: boolean;
+  draw?: DrawState | null;
+
+  // ---- text
+  tb?: Rect;
+  full?: HTMLElement;
+  fs?: number;
+  lh?: number;
+  align?: string;
+  text?: string;
+  live?: HTMLElement;
+  units?: TextUnit[];
+  seq?: string;
+  total?: number;
+  shown?: number;
+  rshown?: number;
+
+  // ---- image
+  media?: Element;
+  frame?: string;
+  shadow?: string;
+  bg?: string;
+  src?: string;
+
+  // ---- line
+  pts?: Point[];
+  stroke?: string;
+  sw?: number;
+  dash?: string;
+  placed?: number;
+  shut?: boolean;
+  edit?: boolean;
+  owner?: Agent | null;
+
+  // ---- runtime, attached while the build progresses
+  task?: Task | null;
+  final?: Task[];
+  group?: Group | null;
+  master?: Group | null;
+  copyOf?: Item | null;
+  twinOf?: Item | null;
+  deps?: Task[];
+  node?: ItemNode | null;
+  start?: number;
+  done?: boolean;
+  draggable?: boolean;
+  settle?: boolean;
+  selAll?: boolean;
+  editing?: boolean;
+  _caret?: HTMLElement | null;
+  _last?: Node | null;
+  _mv?: HTMLElement | null;
+  _tv?: number;
 }
 
 export interface Task {
   id: number;
   y: number;
   layer: Layer;
-  spec: Record<string, any>;
+  spec: TaskSpec;
   deps: Task[];
   gate: number;
   state: "wait" | "active" | "done";
-  [extra: string]: any;
+  agent?: Agent | null;
+  gen?: Generator<void, void, number> | null;
+  doneAt?: number;
+  startedAt?: number;
+}
+
+/** A task carries the choreography for one item, group or guide. */
+export interface TaskSpec {
+  type: "rect" | "text" | "image" | "line" | "guide" | "dup";
+  it?: Item;
+  g?: Group;
+  snap?: Group;
+  snapDx?: number;
+  grow?: boolean;
+  drag?: boolean;
+  bend?: number;
+  speed?: number;
+  [extra: string]: unknown;
 }
 
 export interface Agent {
@@ -113,9 +224,17 @@ export interface Agent {
   y: number;
   vx: number;
   vy: number;
+  speed: number;
   task: Task | null;
   el: HTMLElement;
-  [extra: string]: any;
+  worked?: boolean;
+  leaving?: boolean;
+  follow?: boolean;
+  gen?: Generator<void, void, number> | null;
+  shape?: string;
+  press?: number;
+  angle?: number;
+  sticky?: boolean;
 }
 
 export interface Group {
@@ -128,10 +247,8 @@ export interface Group {
   vis: boolean;
   task: Task;
   deps: Task[];
-  [extra: string]: any;
+  master?: { start: number; end: number };
 }
-
-export interface Guide extends Group {}
 
 export interface Backdrop {
   x: number;
@@ -146,14 +263,14 @@ export interface Model {
   items: Item[];
   tasks: Task[];
   groups: Group[];
-  guides: Guide[];
+  guides: Group[];
   docW: number;
   docH: number;
   backdrops: Backdrop[];
   portKey: string | null;
 }
 
-/** Options accepted by the vendored engine. */
+/** Options accepted by the engine. */
 export interface CoreOptions {
   /** Scroll the page down as the swarm builds. Defaults to false. */
   autoScroll?: boolean;

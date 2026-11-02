@@ -3,38 +3,40 @@ import { HOT, cursorSVG, IMG_ICON } from "./cursors.js";
 import { clamp, f1 } from "./utils.js";
 import { prepText, reveal } from "./text.js";
 import { STYLE } from "./style.js";
+import type { CursorNode, Env, Geometry, Item, ItemNode, Layer, Model, Point } from "./model.js";
+import type { Engine } from "./engine.js";
 // ------------------------------------------------------------------- view
 
 export class View {
-  H: any;
-  W: any;
-  _bdO: any;
-  _ovB: any;
-  _ovS: any;
-  _rulersOn: any;
-  backdrops: any;
-  badges: any;
-  barFill: any;
-  bdStart: any;
-  bg: any;
-  cursorEls: any;
-  cursorsEl: any;
-  dots: any;
-  env: any;
-  frozen: any;
-  g: any;
-  host: any;
-  hud: any;
-  intro: any;
-  ov: any;
-  over: any;
-  port: any;
-  root: any;
-  rulers: any;
-  status: any;
-  under: any;
-  world: any;
-  constructor(env: any) {
+  H!: number;
+  W!: number;
+  _bdO!: number;
+  _ovB: string;
+  _ovS: string;
+  _rulersOn: boolean;
+  backdrops!: HTMLElement[];
+  badges: HTMLElement;
+  barFill: HTMLElement;
+  bdStart!: number;
+  bg: HTMLElement;
+  cursorEls: Map<number, CursorNode>;
+  cursorsEl: HTMLElement;
+  dots: HTMLElement;
+  env: Env;
+  frozen: Geometry | null;
+  g!: Geometry;
+  host: HTMLElement;
+  hud: HTMLElement;
+  intro: HTMLElement;
+  ov: SVGSVGElement;
+  over: HTMLElement;
+  port: HTMLElement;
+  root: ShadowRoot;
+  rulers: HTMLElement;
+  status: HTMLElement;
+  under: HTMLElement;
+  world: HTMLElement;
+  constructor(env: Env) {
     this.env = env;
     this.frozen = null;
     for (const old of document.querySelectorAll("swarm-rebuild")) old.remove();
@@ -65,14 +67,14 @@ export class View {
 <button data-a="replay" hidden title="Wipe and rebuild again">Replay</button>
 <button data-a="close" class="x" title="Exit (Esc)">✕</button>
 </div>`;
-    const $ = (s: any) => root.querySelector(s);
+    const $ = (s: string) => root.querySelector(s) as HTMLElement;
     this.bg = $(".bg");
     this.under = $(".under");
     this.over = $(".over");
     this.port = $(".port");
     this.world = $(".world");
     this.intro = $(".intro");
-    this.ov = $(".ov");
+    this.ov = $(".ov") as unknown as SVGSVGElement;
     this.badges = $(".badges");
     this.cursorsEl = $(".cursors");
     this.rulers = $(".rulers");
@@ -92,9 +94,9 @@ export class View {
     if (lum < 0.4) this.host.style.setProperty("--ph", "#3B3D42");
     if (pb.image && pb.image !== "none") {
       this.bg.style.backgroundImage = pb.image;
-      this.bg.style.backgroundSize = pb.size;
-      this.bg.style.backgroundPosition = pb.position;
-      this.bg.style.backgroundRepeat = pb.repeat;
+      this.bg.style.backgroundSize = pb.size ?? "";
+      this.bg.style.backgroundPosition = pb.position ?? "";
+      this.bg.style.backgroundRepeat = pb.repeat ?? "";
     }
     this.makeIntroLogo();
     document.documentElement.appendChild(host);
@@ -153,15 +155,15 @@ export class View {
     this.world.style.transform = `translate(${-vp.sx}px,${-vp.sy}px)`;
   }
 
-  mount(model: any) {
+  mount(model: Model) {
     this.world.style.width = model.docW + "px";
     this.world.style.height = model.docH + "px";
-    const by: Record<string, any[]> = { world: [], under: [], over: [] };
+    const by: Record<Layer, Item[]> = { world: [], under: [], over: [] };
     for (const it of model.items) by[it.layer].push(it);
     if (model.portKey != null) {
       // inner scroller: its scrolling content sits at the scroller's own place in
       // the stacking order (above its dialog/panel background, below later UI)
-      const screen = [...by.under, ...by.over].sort((a, b) => a.key - b.key);
+      const screen = [...by.under, ...by.over].sort((a, b) => Number(a.key) - Number(b.key));
       const frag = document.createDocumentFragment();
       let placed = false;
       for (const it of screen) {
@@ -173,18 +175,18 @@ export class View {
       }
       if (!placed) frag.appendChild(this.port);
       this.over.appendChild(frag);
-      const wl = by.world.sort((a, b) => a.key - b.key);
+      const wl = by.world.sort((a, b) => Number(a.key) - Number(b.key));
       const wf = document.createDocumentFragment();
       for (const it of wl) wf.appendChild(this.makeNode(it));
       this.world.appendChild(wf);
     } else
       for (const layer of ["under", "world", "over"]) {
-        const list = by[layer].sort((a: any, b: any) => a.key - b.key);
+        const list = by[layer as Layer].sort((a, b) => Number(a.key) - Number(b.key));
         const frag = document.createDocumentFragment();
         for (const it of list) frag.appendChild(this.makeNode(it));
-        (layer === "world" ? this.world : (this as any)[layer]).appendChild(frag);
+        (layer === "world" ? this.world : this[layer as "under" | "over"]).appendChild(frag);
       }
-    this.backdrops = (model.backdrops || []).map((b: any) => {
+    this.backdrops = (model.backdrops || []).map((b) => {
       const d = document.createElement("div");
       d.className = "bd";
       const rgb = (b.color.match(/[\d.]+/g) || [255, 255, 255]).slice(0, 3).join(",");
@@ -198,7 +200,7 @@ export class View {
     this.bdStart = this.env.geom().sy;
   }
 
-  makeNode(it: any) {
+  makeNode(it: Item) {
     const n = document.createElement("div");
     n.style.display = "none";
     it.node = n;
@@ -217,17 +219,17 @@ export class View {
       n.className = "it l";
       n.innerHTML = '<svg width="1" height="1"><path fill="none"/></svg>';
     }
-    if (it.op < 0.999) n.style.opacity = it.op;
+    if (it.op < 0.999) n.style.opacity = String(it.op);
     if (it.blend) n.style.mixBlendMode = it.blend;
     return n;
   }
 
-  renderItem(it: any) {
+  renderItem(it: Item) {
     const tw = it.twinOf;
     if (tw && it._tv !== tw.v) {
       it._tv = tw.v;
       it.vis = tw.vis;
-      it.shown = tw.total ? Math.round((tw.shown / tw.total) * it.total) : it.total;
+      it.shown = tw.total ? Math.round((tw.shown! / tw.total) * it.total!) : it.total;
       it.dx = tw.dx;
       it.dy = tw.dy;
       it.scale = tw.scale;
@@ -236,7 +238,7 @@ export class View {
     }
     if (it.rv === it.v) return;
     it.rv = it.v;
-    const n = it.node;
+    const n = it.node as ItemNode;
     if (!it.vis) {
       if (n.style.display !== "none") n.style.display = "none";
       return;
@@ -250,14 +252,13 @@ export class View {
     }
     if (it.kind === "line") {
       n.style.transform = `translate(${it.dx}px,${it.dy}px)`;
-      const pts = it.pts.slice(0, it.placed);
+      const pts = it.pts!.slice(0, it.placed!);
       const d =
-        pts.map((p: any, i: any) => `${i ? "L" : "M"}${p.x} ${p.y}`).join(" ") +
-        (it.shut ? " Z" : "");
-      const path = n.firstChild.firstChild;
+        pts.map((p, i) => `${i ? "L" : "M"}${p.x} ${p.y}`).join(" ") + (it.shut ? " Z" : "");
+      const path = (n.firstChild as Element).firstChild as Element;
       path.setAttribute("d", d);
-      path.setAttribute("stroke", it.stroke);
-      path.setAttribute("stroke-width", it.sw);
+      path.setAttribute("stroke", it.stroke!);
+      path.setAttribute("stroke-width", String(it.sw));
       path.setAttribute("stroke-linecap", "square");
       if (it.dash) path.setAttribute("stroke-dasharray", it.dash);
       return;
@@ -276,22 +277,22 @@ export class View {
         : "";
 
     if (it.kind === "rect") {
-      const css = it.mode === "master" ? it.copyOf.css : it.css;
+      const css = it.mode === "master" ? it.copyOf!.css! : it.css;
       if (n._css !== css) {
-        n.firstChild.setAttribute("style", css);
+        (n.firstChild as Element).setAttribute("style", css ?? "");
         n._css = css;
       }
       n.classList.toggle("st", !!it.styled);
       n.style.borderRadius = it.styled
         ? it.mode === "master"
-          ? it.copyOf.radius
-          : it.radius
+          ? (it.copyOf!.radius ?? "0px")
+          : (it.radius ?? "0px")
         : "0px";
     } else if (it.kind === "image") {
-      const src = it.mode === "master" ? it.copyOf : it;
+      const src = it.mode === "master" ? it.copyOf! : it;
       if (n._src !== src) {
         const old = n.querySelector(".md");
-        const m = src.media.cloneNode(true);
+        const m = (src.media as Element).cloneNode(true) as Element;
         m.classList.add("md");
         if (old) {
           m.classList.add("swap");
@@ -305,26 +306,26 @@ export class View {
             fr.className = "fr";
             n.appendChild(fr);
           }
-          fr.setAttribute("style", src.frame + `border-radius:${src.radius};`);
+          fr.setAttribute("style", (src.frame ?? "") + `border-radius:${src.radius ?? "0px"};`);
         }
       }
       n.classList.toggle("st", !!it.styled);
-      n.style.borderRadius = it.styled ? src.radius : "0px";
-      n.style.boxShadow = it.styled ? src.shadow : "";
+      n.style.borderRadius = it.styled ? (src.radius ?? "0px") : "0px";
+      n.style.boxShadow = it.styled ? (src.shadow ?? "") : "";
       n.style.backgroundColor = it.styled && src.bg ? src.bg : "";
     } else if (it.kind === "text") {
-      let content;
+      let content: HTMLElement;
       if (it.mode === "master") {
-        if (!it._mv) it._mv = it.copyOf.full.cloneNode(true);
+        if (!it._mv) it._mv = it.copyOf!.full!.cloneNode(true) as HTMLElement;
         content = it._mv;
-      } else content = it.live;
+      } else content = it.live!;
       if (n.firstChild !== content) {
         n.textContent = "";
         n.appendChild(content);
       }
       if (it.mode !== "master" && it.rshown !== it.shown) {
-        it._last = reveal(it, it.shown);
-        it.rshown = it.shown;
+        it._last = reveal(it, it.shown!);
+        it.rshown = it.shown!;
       }
       content.classList.toggle("sa", !!it.selAll);
       const wantCaret = it.editing && !it.selAll && it.mode !== "master";
@@ -339,19 +340,19 @@ export class View {
       } else if (it._caret && it._caret.parentNode) it._caret.remove();
       if (it.scale !== 1) {
         const ox =
-          it.tb.x -
+          it.tb!.x -
           it.x +
           (it.align === "center"
-            ? it.tb.w / 2
+            ? it.tb!.w / 2
             : it.align === "right" || it.align === "end"
-              ? it.tb.w
+              ? it.tb!.w
               : 0);
-        n.style.transformOrigin = `${ox}px ${it.tb.y - it.y}px`;
+        n.style.transformOrigin = `${ox}px ${it.tb!.y - it.y}px`;
       }
     }
   }
 
-  renderCursors(E: any) {
+  renderCursors(E: Engine) {
     const vp = E.vp;
     const seen = new Set();
     for (const c of E.cursors) {
@@ -368,17 +369,17 @@ export class View {
       const X = c.sticky ? c.x : c.x - vp.sx + vp.ox;
       const Y = c.sticky ? c.y : c.y - vp.sy + vp.oy;
       el.style.transform = `translate(${f1(X)}px,${f1(Y)}px)`;
-      const svg = el.firstChild;
+      const svg = el.firstChild as SVGElement;
       if (el._shape !== c.shape) {
-        svg.innerHTML = cursorSVG(c.shape, c.color);
+        svg.innerHTML = cursorSVG(c.shape as never, c.color);
         el._shape = c.shape;
         const [hx, hy] = HOT[c.shape as keyof typeof HOT];
         el._hx = hx;
         el._hy = hy;
         svg.style.transformOrigin = `${hx}px ${hy}px`;
       }
-      const s = 1 - c.press * 0.12;
-      svg.style.transform = `translate(${-el._hx}px,${-el._hy}px) rotate(${f1(c.angle)}deg) scale(${s})`;
+      const s = 1 - (c.press ?? 0) * 0.12;
+      svg.style.transform = `translate(${-(el._hx ?? 0)}px,${-(el._hy ?? 0)}px) rotate(${f1(c.angle ?? 0)}deg) scale(${s})`;
     }
     for (const [id, el] of this.cursorEls)
       if (!seen.has(id)) {
@@ -387,12 +388,12 @@ export class View {
       }
   }
 
-  renderOverlay(E: any) {
+  renderOverlay(E: Engine) {
     const vp = E.vp;
     const W = this.W;
     const H = this.H;
-    const X = (x: any, st: any = false) => f1(st ? x : x - vp.sx + vp.ox);
-    const Y = (y: any, st: any = false) => f1(st ? y : y - vp.sy + vp.oy);
+    const X = (x: number, st = false) => f1(st ? x : x - vp.sx + vp.ox);
+    const Y = (y: number, st = false) => f1(st ? y : y - vp.sy + vp.oy);
     let s = "";
     let b = "";
     for (const g of E.guides) {
@@ -410,12 +411,12 @@ export class View {
     }
     for (const it of E.editLines) {
       const st = it.layer !== "world";
-      const pts = it.pts
+      const pts: number[][] = (it.pts as Point[])
         .slice(0, it.placed)
-        .map((p: any) => [X(p.x + it.dx, st), Y(p.y + it.dy, st)]);
+        .map((p) => [X(p.x + it.dx, st), Y(p.y + it.dy, st)]);
       const o = it.owner;
       const all = o ? [...pts, [X(o.x, o.sticky), Y(o.y, o.sticky)]] : pts;
-      s += `<polyline points="${all.map((p: any) => p.join(",")).join(" ")}${it.shut && pts[0] ? " " + pts[0].join(",") : ""}" fill="none" stroke="${BLUE}" stroke-width="1.5"/>`;
+      s += `<polyline points="${all.map((p) => p.join(",")).join(" ")}${it.shut && pts[0] ? " " + pts[0].join(",") : ""}" fill="none" stroke="${BLUE}" stroke-width="1.5"/>`;
       for (const p of pts)
         s += `<circle cx="${p[0]}" cy="${p[1]}" r="3.6" fill="#fff" stroke="${BLUE}" stroke-width="1.5"/>`;
     }
@@ -466,7 +467,7 @@ export class View {
     }
   }
 
-  renderRulers(E: any) {
+  renderRulers(E: Engine) {
     const t = E.rulers.t;
     if (t <= 0.001) {
       if (this._rulersOn) {
@@ -530,13 +531,13 @@ export class View {
       `<div class="ruler-corner" style="opacity:${f1(t)}"></div>`;
   }
 
-  render(E: any) {
+  render(E: Engine) {
     this.syncWorld();
     if (this.backdrops && this.backdrops.length) {
       const o = f1(clamp((Math.abs(E.vp.sy - this.bdStart) - 8) / 80, 0, 1));
       if (o !== this._bdO) {
         this._bdO = o;
-        for (const d of this.backdrops) d.style.opacity = o;
+        for (const d of this.backdrops) d.style.opacity = String(o);
       }
     }
     if (E.items) for (const it of E.items) this.renderItem(it);

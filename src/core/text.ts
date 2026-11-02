@@ -39,7 +39,7 @@ function wsOf(n: Node, root: Node): string {
 
 export function prepText(item: Item): void {
   const it = item as RevealItem;
-  const live = it.full.cloneNode(true) as HTMLElement;
+  const live = it.full!.cloneNode(true) as HTMLElement;
   const units: TextUnit[] = [];
   let seq = "";
   const boxes: BoxElement[] = [];
