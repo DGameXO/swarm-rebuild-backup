@@ -211,14 +211,15 @@ tests/
 media/
   banner.svg  demo.gif  demo.mp4  poster.png
 .github/
-  workflows/ci.yml  workflows/release.yml  workflows/pages.yml
+  workflows/ci.yml  build.yml  pages.yml  release-please.yml  release.yml
+release-please-config.json  .release-please-manifest.json
 ```
 
 ---
 
 ## Development
 
-Requires **Node 26+** and **npm 11+**.
+Requires **Node 26** (the version CI runs) and **npm 11+**.
 
 ```bash
 npm install
@@ -230,6 +231,7 @@ npm run api-report:check # fail if the public API drifted
 npm run demo            # vite demo
 npm run test:e2e        # Playwright suite
 npm run format          # prettier
+npm run pack:check -- swarm-rebuild-*.tgz # inspect the npm tarball
 ```
 
 Git hooks are managed by [Lefthook](https://lefthook.dev) and installed by
@@ -260,16 +262,18 @@ So the pipeline splits the work: `tsc` emits declarations natively, esbuild
 native API (`typescript/unstable/sync`): open the project, take a snapshot,
 read the entry program through the checker and print signatures with the
 emitter. CI fails when the committed report drifts, so any public API change
-shows up in the diff.
+shows up in the diff. The emitter inherits line endings from the sources, so
+the script normalizes them to LF before comparing or writing.
 
 ### Releases
 
-Push a tag and the release workflow publishes to npm with provenance:
+Merge the release PR that release-please keeps up to date on `main`. It bumps
+`package.json`, adds the `CHANGELOG.md` entry, tags, and creates the GitHub
+release. The tag then triggers a publish that runs the e2e suite against the
+packed tarball before uploading it to npm with provenance.
 
-```bash
-npm version minor
-git push --follow-tags
-```
+Versions come from Conventional Commits: no manual `npm version`, no hand-pushed
+tags. Before 1.0, a breaking change bumps the minor version.
 
 #### First publish
 
@@ -285,12 +289,26 @@ Then open **npmjs.com → Packages → swarm-rebuild → Settings → Trusted
 publishing**, add a GitHub Actions publisher and tick **Allow npm publish**
 (configurations created after September 2026 default to `npm stage publish`
 only). The configuration expires if it is not used for a successful publish
-within two days, so tag a release right after saving it.
+within two days, so merge a release PR right after saving it.
 
-From that point on, no token is needed: `release.yml` uses OIDC, and provenance
-is generated automatically.
+From that point on, no token is needed: the release workflow uses OIDC, and
+provenance is generated automatically.
 
-CI, Pages and Dependabot are already wired.
+#### Required setup
+
+- **`main` ruleset** — required checks: `verify`, `e2e`, `audit`. They are
+  always scheduled, even when `paths-ignore` skips the work, so a doc-only PR
+  is not blocked.
+- **Pages** — set the source to **GitHub Actions**. The demo deploys only after
+  the CI run for the same commit succeeds.
+
+No secret is needed. `release-please` runs on the default `GITHUB_TOKEN`
+(enable _Settings → Actions → General → Allow GitHub Actions to create and
+approve pull requests_), and publishing uses OIDC trusted publishing. A
+`RELEASE_PLEASE_TOKEN` secret is picked up only if it exists.
+
+One caveat of `GITHUB_TOKEN`: events it creates do not start new workflows, so
+CI does not re-run on the release PR or on its tagged commit.
 
 ---
 

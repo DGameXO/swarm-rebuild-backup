@@ -8,6 +8,11 @@
  *
  *   node scripts/api-report.mjs           # write api-report.md
  *   node scripts/api-report.mjs --check   # fail if api-report.md is stale
+ *
+ * The emitter inherits line endings from the source files it last read, so the
+ * output must be normalized before it is compared or written: otherwise the
+ * report flips between LF and CRLF depending on the platform and on the order
+ * in which files were loaded, and `--check` fails on a clean checkout.
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -22,6 +27,11 @@ const output = join(root, "api-report.md");
 
 const api = new API();
 
+/** One line ending for every platform: the report is compared byte for byte. */
+function toLf(text) {
+  return text.replace(/\r\n?/g, "\n");
+}
+
 function signatureOf(checker, emitter, node, symbol) {
   const type = checker.getTypeOfSymbol(symbol);
   const [signature] = checker.getSignaturesOfType(type, SignatureKind.Call);
@@ -32,7 +42,7 @@ function signatureOf(checker, emitter, node, symbol) {
     node,
     0,
   );
-  return declaration ? emitter.printNode(declaration) : null;
+  return declaration ? toLf(emitter.printNode(declaration)) : null;
 }
 
 function nameOf(node) {
@@ -54,7 +64,7 @@ function collect(program, checker, emitter) {
       case SyntaxKind.InterfaceDeclaration:
       case SyntaxKind.TypeAliasDeclaration: {
         if (!exported) break;
-        blocks.push(emitter.printNode(statement));
+        blocks.push(toLf(emitter.printNode(statement)));
         break;
       }
       case SyntaxKind.FunctionDeclaration: {
@@ -73,7 +83,7 @@ function collect(program, checker, emitter) {
         break;
       }
       case SyntaxKind.ExportDeclaration: {
-        blocks.push(emitter.printNode(statement).replace(/;$/, ";"));
+        blocks.push(toLf(emitter.printNode(statement)).replace(/;$/, ";"));
         break;
       }
       default:
@@ -104,7 +114,7 @@ try {
   const check = process.argv.includes("--check");
 
   if (check) {
-    const current = await readFile(output, "utf8").catch(() => "");
+    const current = toLf(await readFile(output, "utf8").catch(() => ""));
     if (current.trim() !== report.trim()) {
       console.error("api-report.md is out of date. Run `npm run api-report`.");
       process.exitCode = 1;

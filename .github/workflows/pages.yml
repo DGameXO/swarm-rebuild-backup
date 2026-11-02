@@ -1,44 +1,75 @@
 name: Pages
 
+# `workflow_run` rather than a second `push`: a CI run whose jobs were skipped
+# by `paths-ignore` still reports "success", and only this event tells us the
+# run actually passed.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: deploy demo
+  build:
+    name: build site
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@v7
         with:
           node-version: 26
           cache: npm
-      - run: npm ci
-      - run: npm run build
-      - name: Assemble site
+      # The CI artifact already carries `dist/` built from this exact commit.
+      - uses: actions/download-artifact@v7
+        if: github.event_name == 'workflow_run'
+        with:
+          name: swarm-rebuild
+          path: .ci
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: npm ci --ignore-scripts
+      - name: Assemble and verify the site
+        run: node scripts/build-site.mjs --dist .ci/dist
+      - name: Smoke-test the assembled site
         run: |
-          mkdir -p _site
-          cp -r demo _site/demo
-          cp -r dist _site/dist
-          touch _site/.nojekyll
-          printf '%s\n' '<!doctype html><meta charset="utf-8"><title>swarm-rebuild</title><meta http-equiv="refresh" content="0;url=./demo/"><a href="./demo/">Open the demo</a>' > _site/index.html
-      - uses: actions/configure-pages@v6
+          cd _site
+          node "$GITHUB_WORKSPACE/scripts/serve.mjs" &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 20); do
+            curl -fsS -o /dev/null http://127.0.0.1:4173/demo/index.html && break
+            sleep 0.5
+          done
+          for path in /index.html /demo/index.html /demo/showcase.html /demo/magazine.html /demo/saas.html /dist/index.js /dist/index.cjs; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:4173$path")
+            test "$code" = "200" || { echo "::error::$path answered $code"; exit 1; }
+          done
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
+
+  deploy:
+    name: deploy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 10
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v5

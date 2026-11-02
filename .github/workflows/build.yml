@@ -1,0 +1,39 @@
+name: Build
+
+# Reusable workflow. Publishes the exact `dist/` and tarball that e2e tests
+# and, on a release, npm publishes: what is tested is what ships.
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: Node version to build with.
+        type: string
+        default: "26"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run api-report:check
+      - run: npm pack
+      - run: npm run pack:check -- swarm-rebuild-*.tgz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: swarm-rebuild
+          path: |
+            dist
+            swarm-rebuild-*.tgz
+          retention-days: 7
+          if-no-files-found: error

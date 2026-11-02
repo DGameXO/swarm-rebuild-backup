@@ -6,7 +6,8 @@
   "type": "module",
   "sideEffects": false,
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.map"
   ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -19,7 +20,7 @@
     }
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=26"
   },
   "keywords": [
     "animation",
@@ -35,10 +36,11 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "demo": "vite demo --open",
-    "format": "prettier --write \"src/**/*.ts\" \"demo/**/*.{html,js}\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mjs\" \"release-please-config.json\" \".release-please-manifest.json\" \"tsup.config.ts\" \"playwright.config.ts\"",
     "api-report": "node scripts/api-report.mjs",
     "api-report:check": "node scripts/api-report.mjs --check",
+    "pack:check": "node scripts/pack-check.mjs",
     "prepublishOnly": "npm run build && npm run api-report:check",
     "prepare": "lefthook install",
     "test:e2e": "playwright test",

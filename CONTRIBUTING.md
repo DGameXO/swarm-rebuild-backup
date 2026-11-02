@@ -11,7 +11,7 @@ npm run build
 npm run demo         # serves the demo pages on a Vite server
 ```
 
-Node 24 or newer. The CI runs Node 26.
+Node 26. That is the version CI runs.
 
 ## Scripts
 
@@ -22,7 +22,8 @@ Node 24 or newer. The CI runs Node 26.
 | `npm run api-report`       | regenerate `api-report.md` from the public API |
 | `npm run api-report:check` | fail if `api-report.md` is stale               |
 | `npm run test:e2e`         | Playwright suite (Chromium)                    |
-| `npm run format`           | Prettier on `src` and the demo pages           |
+| `npm run format`           | Prettier on `src`                              |
+| `npm run pack:check`       | check the npm tarball before publishing        |
 
 ## Ground rules
 
@@ -65,9 +66,18 @@ Keep the diff focused. Refactors and behaviour changes go in separate PRs.
 
 ## Releasing
 
-Maintainers only:
+Maintainers only. Versions are automated with
+[release-please](https://github.com/googleapis/release-please): there is no
+manual `npm version` and no hand-pushed tag.
 
-1. Bump `version` in `package.json`.
-2. Commit, then tag: `git tag v0.x.y && git push origin v0.x.y`.
-3. The `Release` workflow publishes to npm with provenance and opens the
-   GitHub release.
+1. Merge your work to `main` with a Conventional Commit message.
+2. Merge the release PR (`chore(main): release x.y.z`) that release-please
+   keeps up to date. It bumps `package.json`, writes `CHANGELOG.md`, tags
+   `vX.Y.Z` and opens the GitHub release.
+3. The tag triggers `release.yml`: it builds, runs the e2e suite against the
+   packed tarball, then publishes it to npm with provenance through trusted
+   publishing (OIDC, no token). It refuses to publish unless the tag is an
+   ancestor of `main` and matches `package.json`.
+
+The workflow needs no secret: `release-please` runs on the default
+`GITHUB_TOKEN`. See the README for the full setup.

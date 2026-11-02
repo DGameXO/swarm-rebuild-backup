@@ -5,6 +5,11 @@ pre-commit:
   commands:
     format:
       glob: "*.{ts,js,mjs,json,yml,yaml,md}"
+      exclude:
+        - ".github/**"
+        - "demo/**"
+        - "CHANGELOG.md"
+        - "api-report.md"
       run: npx prettier --write {staged_files}
       stage_fixed: true
     api-report:
