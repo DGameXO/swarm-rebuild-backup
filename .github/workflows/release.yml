@@ -1,26 +1,47 @@
 name: Release
 
-# Publishes the tag release-please created. Never tags, bumps a version or
-# edits the GitHub release.
+# The only thing that writes a version: package.json, CHANGELOG.md, the tag
+# and the GitHub release all come from release-please. It runs on the default
+# GITHUB_TOKEN, exactly like the manual release this replaces.
+#
+# Publishing lives in this file on purpose. npm validates the *calling*
+# workflow name when `workflow_call` is involved, so keeping `npm publish`
+# here (no reusable workflow) leaves no room for a mismatch with the trusted
+# publisher configured on npmjs.com.
 on:
-  workflow_call:
-    inputs:
-      tag:
-        description: Tag to publish, e.g. `v0.3.0`.
-        type: string
-        required: true
-      body:
-        description: Release notes, shown in the job summary.
-        type: string
-        required: false
-        default: ""
+  push:
+    branches: [main]
+  workflow_dispatch:
 
-permissions:
-  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      body: ${{ steps.release.outputs.body }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
   source:
     name: release from main
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -30,9 +51,9 @@ jobs:
           persist-credentials: false
       - name: Check the tag is on main
         env:
-          TAG: ${{ inputs.tag }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
         run: |
-          test -n "$TAG" || { echo "::error::No tag passed to the Release workflow"; exit 1; }
+          test -n "$TAG" || { echo "::error::No tag was released"; exit 1; }
           git fetch --no-tags origin "+refs/tags/${TAG}:refs/tags/${TAG}"
           git merge-base --is-ancestor "refs/tags/${TAG}^{commit}" HEAD || {
             echo "::error::Tag $TAG is not an ancestor of main"; exit 1; }
@@ -52,7 +73,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.release-please.outputs.tag_name }}
           persist-credentials: false
       - uses: actions/setup-node@v7
         with:
@@ -85,7 +106,7 @@ jobs:
 
   publish:
     name: publish
-    needs: [source, test]
+    needs: [release-please, test]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -97,7 +118,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.release-please.outputs.tag_name }}
           persist-credentials: false
       # Trusted publishing exchanges the OIDC token itself: any
       # NODE_AUTH_TOKEN in the environment would bypass it.
@@ -112,7 +133,7 @@ jobs:
           name: swarm-rebuild
       - name: Tag and package.json agree
         env:
-          TAG: ${{ inputs.tag }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
         run: |
           version=$(node -p "require('./package.json').version")
           test "v$version" = "$TAG" || {
@@ -121,9 +142,9 @@ jobs:
         run: npm publish swarm-rebuild-*.tgz --access public --provenance
       - name: Summary
         env:
-          TAG: ${{ inputs.tag }}
-          BODY: ${{ inputs.body }}
-          URL: https://www.npmjs.com/package/swarm-rebuild/v/${{ inputs.tag }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+          BODY: ${{ needs.release-please.outputs.body }}
+          URL: https://www.npmjs.com/package/swarm-rebuild/v/${{ needs.release-please.outputs.tag_name }}
         run: |
           {
             echo "### Published \`swarm-rebuild@${TAG#v}\`"

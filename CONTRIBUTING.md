@@ -74,8 +74,8 @@ manual `npm version` and no hand-pushed tag.
 2. Merge the release PR (`chore(main): release x.y.z`) that release-please
    keeps up to date. It bumps `package.json`, writes `CHANGELOG.md`, tags
    `vX.Y.Z` and opens the GitHub release.
-3. The tag triggers `release.yml`: it builds, runs the e2e suite against the
-   packed tarball, then publishes it to npm with provenance through trusted
+3. `release.yml` does the rest in one run: it builds, runs the e2e suite against
+   the packed tarball, then publishes it to npm with provenance through trusted
    publishing (OIDC, no token). It refuses to publish unless the tag is an
    ancestor of `main` and matches `package.json`.
 

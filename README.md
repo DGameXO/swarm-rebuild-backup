@@ -211,7 +211,7 @@ tests/
 media/
   banner.svg  demo.gif  demo.mp4  poster.png
 .github/
-  workflows/ci.yml  build.yml  pages.yml  release-please.yml  release.yml
+  workflows/ci.yml  build.yml  pages.yml  release.yml
 release-please-config.json  .release-please-manifest.json
 ```
 
@@ -286,10 +286,21 @@ npm publish --access public
 ```
 
 Then open **npmjs.com → Packages → swarm-rebuild → Settings → Trusted
-publishing**, add a GitHub Actions publisher and tick **Allow npm publish**
-(configurations created after September 2026 default to `npm stage publish`
-only). The configuration expires if it is not used for a successful publish
-within two days, so merge a release PR right after saving it.
+publishing**, add a GitHub Actions publisher:
+
+| Field               | Value           |
+| ------------------- | --------------- |
+| Organization / user | `MaximeBoulle`  |
+| Repository          | `Swarm-Rebuild` |
+| Workflow filename   | `release.yml`   |
+| Environment         | `npm`           |
+
+Tick **Allow npm publish**. The filename must be the workflow that actually
+runs `npm publish`: `release.yml` contains both release-please and the publish
+job, so there is no `workflow_call` indirection to mismatch.
+
+The configuration expires if it is not used for a successful publish within two
+days, so merge a release PR right after saving it.
 
 From that point on, no token is needed: the release workflow uses OIDC, and
 provenance is generated automatically.
