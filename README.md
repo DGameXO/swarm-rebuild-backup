@@ -116,6 +116,7 @@ document.querySelector("#stop")?.addEventListener("click", () => swarm.stop());
 | **One frame loop**    | Every cursor, task and layer is driven by a single `requestAnimationFrame` tick. No timers to leak. |
 | **Scroll-aware**      | Tasks unlock top-down as the visitor scrolls, or let `autoScroll` drive the camera for you.         |
 | **Bails out cleanly** | `Esc`, the HUD button, or `stop()` removes the overlay and hands the page back, untouched.          |
+| **Typed end to end**  | Every item, task, agent and overlay primitive has a named type. No `any` in the codebase.           |
 
 ---
 
