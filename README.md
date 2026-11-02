@@ -109,13 +109,13 @@ document.querySelector("#stop")?.addEventListener("click", () => swarm.stop());
 
 ## Why it feels right
 
-|  |  |
-| --- | --- |
-| **Shadow DOM** | The overlay lives in its own root. Your CSS cannot leak in, the engine's CSS cannot leak out. |
-| **Real DOM** | Text is rebuilt as text, not as pixels. It wraps, selects and scales exactly like the original. |
-| **One frame loop** | Every cursor, task and layer is driven by a single `requestAnimationFrame` tick. No timers to leak. |
-| **Scroll-aware** | Tasks unlock top-down as the visitor scrolls, or let `autoScroll` drive the camera for you. |
-| **Bails out cleanly** | `Esc`, the HUD button, or `stop()` removes the overlay and hands the page back, untouched. |
+|                       |                                                                                                     |
+| --------------------- | --------------------------------------------------------------------------------------------------- |
+| **Shadow DOM**        | The overlay lives in its own root. Your CSS cannot leak in, the engine's CSS cannot leak out.       |
+| **Real DOM**          | Text is rebuilt as text, not as pixels. It wraps, selects and scales exactly like the original.     |
+| **One frame loop**    | Every cursor, task and layer is driven by a single `requestAnimationFrame` tick. No timers to leak. |
+| **Scroll-aware**      | Tasks unlock top-down as the visitor scrolls, or let `autoScroll` drive the camera for you.         |
+| **Bails out cleanly** | `Esc`, the HUD button, or `stop()` removes the overlay and hands the page back, untouched.          |
 
 ---
 
@@ -127,14 +127,14 @@ document.querySelector("#stop")?.addEventListener("click", () => swarm.stop());
 
 **1. Snapshot** — the live DOM is walked once, including open shadow roots.
 
-| Captured as | From |
-| --- | --- |
-| Boxes | fills, borders, radii, shadows, gradients, backdrop blur |
-| Text | blocks cloned with their computed styles, links, inline code, icons |
-| Lines | single-side borders, `<hr>` |
-| Media | `<img>`, `<svg>`, `<video>`, `<canvas>`, iframes |
-| Duplicates | repeated siblings: nav links, cards, list rows, logos |
-| Guides | shared left edges and baselines that text snaps to |
+| Captured as | From                                                                |
+| ----------- | ------------------------------------------------------------------- |
+| Boxes       | fills, borders, radii, shadows, gradients, backdrop blur            |
+| Text        | blocks cloned with their computed styles, links, inline code, icons |
+| Lines       | single-side borders, `<hr>`                                         |
+| Media       | `<img>`, `<svg>`, `<video>`, `<canvas>`, iframes                    |
+| Duplicates  | repeated siblings: nav links, cards, list rows, logos               |
+| Guides      | shared left edges and baselines that text snaps to                  |
 
 **2. Blank** — a full-viewport layer covers the page with its own background.
 A hidden scroll pass first triggers lazy images and reveal-on-scroll content.
@@ -151,24 +151,24 @@ Rects are crosshair-dragged, text is typed with a caret, media sweeps in.
 
 ### `createSwarm(options?): Swarm`
 
-| Option | Type | Default | |
-| --- | --- | --- | --- |
-| `trigger` | `"manual" \| "load" \| "visible"` | `"manual"` | When the effect starts |
-| `target` | `Element \| string` | `documentElement` | Anchor observed by `"visible"` |
-| `autoScroll` | `boolean` | `false` | Let the swarm travel down the page |
-| `speed` | `number` | `1` | Build speed multiplier |
-| `onComplete` | `() => void` | — | Every layer rebuilt |
-| `onDestroy` | `() => void` | — | Overlay removed |
+| Option       | Type                              | Default           |                                    |
+| ------------ | --------------------------------- | ----------------- | ---------------------------------- |
+| `trigger`    | `"manual" \| "load" \| "visible"` | `"manual"`        | When the effect starts             |
+| `target`     | `Element \| string`               | `documentElement` | Anchor observed by `"visible"`     |
+| `autoScroll` | `boolean`                         | `false`           | Let the swarm travel down the page |
+| `speed`      | `number`                          | `1`               | Build speed multiplier             |
+| `onComplete` | `() => void`                      | —                 | Every layer rebuilt                |
+| `onDestroy`  | `() => void`                      | —                 | Overlay removed                    |
 
 ### Instance
 
-| Member | |
-| --- | --- |
-| `start()` | Run the effect. No-op while running |
-| `stop()` | Remove the overlay immediately |
-| `replay()` | Tear down and rebuild from scratch |
-| `destroy()` | Stop and release the instance |
-| `running` | `true` while the swarm is building |
+| Member      |                                     |
+| ----------- | ----------------------------------- |
+| `start()`   | Run the effect. No-op while running |
+| `stop()`    | Remove the overlay immediately      |
+| `replay()`  | Tear down and rebuild from scratch  |
+| `destroy()` | Stop and release the instance       |
+| `running`   | `true` while the swarm is building  |
 
 ---
 
@@ -217,11 +217,15 @@ npm run demo            # vite demo
 npm run format          # prettier
 ```
 
-| Output | |
-| --- | --- |
-| `dist/index.js` | ESM bundle |
-| `dist/index.cjs` | CommonJS bundle |
-| `dist/index.d.ts` | Public types |
+Git hooks are managed by [Lefthook](https://lefthook.dev) and installed by
+`npm install`: Prettier and the API report run on commit, typecheck and the API
+report check run on push. Force a run with `npx lefthook run pre-push`.
+
+| Output            |                 |
+| ----------------- | --------------- |
+| `dist/index.js`   | ESM bundle      |
+| `dist/index.cjs`  | CommonJS bundle |
+| `dist/index.d.ts` | Public types    |
 
 ### Why `tsc` emits the declarations
 

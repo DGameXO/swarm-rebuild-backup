@@ -1,0 +1,22 @@
+# Git hooks. Installed by `npm install` through the `prepare` script.
+# Run everything by hand with `npx lefthook run pre-push`.
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.{ts,js,mjs,json,yml,yaml,md}"
+      run: npx prettier --write {staged_files}
+      stage_fixed: true
+    api-report:
+      glob: "src/index.ts"
+      run: npm run api-report && git add api-report.md
+
+pre-push:
+  parallel: false
+  commands:
+    typecheck:
+      run: npm run typecheck
+      files: git ls-files
+    api-report-check:
+      run: npm run api-report:check
+      files: git ls-files
