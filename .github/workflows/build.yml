@@ -28,7 +28,16 @@ jobs:
       - run: npm run build
       - run: npm run api-report:check
       - run: npm pack
-      - run: npm run pack:check -- swarm-rebuild-*.tgz
+      - name: No source maps in the tarball
+        run: |
+          if tar -tzf swarm-rebuild-*.tgz | grep -qE '\.map$'; then
+            echo "::error::source maps must not be published"
+            exit 1
+          fi
+      - name: No runtime dependencies
+        run: |
+          count=$(node -p "Object.keys(require('./package.json').dependencies ?? {}).length")
+          test "$count" -eq 0 || { echo "::error::swarm-rebuild must not gain a runtime dependency (found $count)"; exit 1; }
       - uses: actions/upload-artifact@v7
         with:
           name: swarm-rebuild

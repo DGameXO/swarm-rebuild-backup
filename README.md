@@ -231,7 +231,7 @@ npm run api-report:check # fail if the public API drifted
 npm run demo            # vite demo
 npm run test:e2e        # Playwright suite
 npm run format          # prettier
-npm run pack:check -- swarm-rebuild-*.tgz # inspect the npm tarball
+npm run lint:package    # publint the packed tarball
 ```
 
 Git hooks are managed by [Lefthook](https://lefthook.dev) and installed by

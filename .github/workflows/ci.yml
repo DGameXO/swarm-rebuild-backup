@@ -45,6 +45,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm run api-report:check
+      - run: npm run lint:package
       - name: Fail if `npm run api-report` rewrites the report
         run: |
           npm run api-report

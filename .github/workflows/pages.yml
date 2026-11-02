@@ -39,8 +39,25 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: npm ci --ignore-scripts
-      - name: Assemble and verify the site
-        run: node scripts/build-site.mjs --dist .ci/dist
+      - name: Assemble the site
+        run: |
+          mkdir -p _site
+          cp -r demo _site/demo
+          cp -r .ci/dist _site/dist
+          printf 'User-agent: *\nDisallow: /\n' > _site/robots.txt
+          touch _site/.nojekyll
+          printf '%s\n' '<!doctype html><meta charset="utf-8"><title>swarm-rebuild</title><meta http-equiv="refresh" content="0;url=./demo/"><a href="./demo/">Open the demo</a>' > _site/index.html
+      # The demo imports `../dist/index.js`; a deploy that shipped a 404 bundle
+      # has already gone out once. Every page must reach a bundle that exists.
+      - name: Every demo page resolves its bundle
+        run: |
+          for page in _site/demo/*.html; do
+            if grep -q '\.\./dist/index\.js' "$page"; then
+              test -s _site/dist/index.js || { echo "::error::$page imports a missing bundle"; exit 1; }
+            fi
+          done
+          test -s _site/dist/index.js
+          test -s _site/dist/index.d.ts
       - name: Smoke-test the assembled site
         run: |
           cd _site

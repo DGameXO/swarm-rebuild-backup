@@ -23,7 +23,7 @@ Node 26. That is the version CI runs.
 | `npm run api-report:check` | fail if `api-report.md` is stale               |
 | `npm run test:e2e`         | Playwright suite (Chromium)                    |
 | `npm run format`           | Prettier on `src`                              |
-| `npm run pack:check`       | check the npm tarball before publishing        |
+| `npm run lint:package`     | `publint` the packed tarball before publishing |
 
 ## Ground rules
 
