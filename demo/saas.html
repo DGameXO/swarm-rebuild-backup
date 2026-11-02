@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Northbeam — analytics</title>
+<meta name="description" content="Northbeam is a fictional product analytics dashboard.">
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #11151f;
+    --panel-2: #151a26;
+    --line: #1f2634;
+    --ink: #e6eaf2;
+    --muted: #7d879c;
+    --green: #34d399;
+    --blue: #60a5fa;
+    --violet: #a78bfa;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
+  }
+  .app { display: grid; grid-template-columns: 236px 1fr; min-height: 100vh; }
+
+  /* ---------- sidebar ---------- */
+  aside {
+    background: var(--panel); border-right: 1px solid var(--line);
+    padding: 18px 14px; display: flex; flex-direction: column; gap: 26px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 0 6px; font-weight: 700; letter-spacing: -.02em; }
+  .brand i {
+    width: 26px; height: 26px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--green), var(--blue));
+  }
+  .workspace {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2);
+    font-size: 13px;
+  }
+  .workspace b { flex: 1; font-weight: 600; }
+  .workspace span { color: var(--muted); font-size: 11px; }
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav a {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
+    color: var(--muted); text-decoration: none; font-size: 13px;
+  }
+  .nav a.on { background: #1a2233; color: var(--ink); }
+  .nav a i { width: 14px; height: 14px; border-radius: 4px; background: #2a3448; }
+  .nav a.on i { background: var(--blue); }
+  .aside-foot { margin-top: auto; font: 500 11px/1.5 var(--mono); color: var(--muted); padding: 0 6px; }
+
+  /* ---------- main ---------- */
+  main { padding: 22px 28px 40px; }
+  .topbar { display: flex; align-items: center; gap: 16px; margin-bottom: 26px; }
+  .search {
+    flex: 1; max-width: 360px; display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px;
+    background: var(--panel); color: var(--muted); font-size: 13px;
+  }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, var(--violet), var(--blue)); margin-left: auto; }
+  .btn {
+    padding: 9px 14px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--ink); font: 600 13px/1 var(--sans);
+  }
+  .btn.pri { background: var(--blue); border-color: var(--blue); color: #06101f; }
+
+  .page-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+  h1 { font-size: 26px; letter-spacing: -.02em; margin: 0 0 4px; }
+  .page-head p { margin: 0; color: var(--muted); font-size: 13px; }
+  .range { display: flex; gap: 6px; }
+  .range span {
+    padding: 7px 11px; border-radius: 8px; border: 1px solid var(--line);
+    font: 500 12px/1 var(--mono); color: var(--muted);
+  }
+  .range span.on { background: #1a2233; color: var(--ink); border-color: #2a3448; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .kpi .label { color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; }
+  .kpi b { display: block; font-size: 26px; letter-spacing: -.02em; margin: 8px 0 6px; }
+  .kpi .delta { font: 600 11px/1 var(--mono); }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+
+  .panels { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; margin-bottom: 18px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .panel h2 { font-size: 14px; margin: 0 0 4px; letter-spacing: -.01em; }
+  .panel .sub { color: var(--muted); font-size: 12px; margin: 0 0 18px; }
+
+  .chart { display: flex; align-items: end; gap: 8px; height: 190px; padding-top: 8px; }
+  .bar { flex: 1; display: flex; flex-direction: column; justify-content: end; gap: 4px; height: 100%; }
+  .bar i { display: block; border-radius: 4px 4px 2px 2px; background: linear-gradient(to top, #1f4fd8, var(--blue)); }
+  .bar:nth-child(3n) i { background: linear-gradient(to top, #0f7a5a, var(--green)); }
+  .bar span { font: 500 10px/1 var(--mono); color: var(--muted); text-align: center; }
+
+  .legend { display: flex; gap: 16px; margin-top: 14px; font: 500 11px/1 var(--mono); color: var(--muted); }
+  .legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 6px; }
+
+  .donut { display: flex; align-items: center; gap: 18px; }
+  .ring {
+    width: 128px; height: 128px; border-radius: 50%;
+    background: conic-gradient(var(--blue) 0 42%, var(--green) 42% 68%, var(--violet) 68% 86%, #2a3448 86% 100%);
+    display: grid; place-items: center;
+  }
+  .ring::after { content: ""; width: 88px; height: 88px; border-radius: 50%; background: var(--panel); }
+  .ring b { position: absolute; font-size: 18px; }
+  .donut ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 12px; }
+  .donut li { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .donut li i { width: 8px; height: 8px; border-radius: 2px; }
+  .donut li b { color: var(--ink); margin-left: auto; font-weight: 600; }
+
+  .lower { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 11px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font: 600 10px/1 var(--mono); text-transform: uppercase; letter-spacing: .1em; }
+  td b { font-weight: 600; }
+  .tag { padding: 3px 8px; border-radius: 999px; font: 600 10px/1 var(--mono); }
+  .tag.ok { background: #10301f; color: var(--green); }
+  .tag.warn { background: #33270c; color: var(--amber); }
+  .tag.err { background: #33161a; color: var(--red); }
+
+  .feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+  .feed li { display: flex; gap: 10px; font-size: 13px; }
+  .feed i { width: 26px; height: 26px; border-radius: 8px; flex: none; background: #1a2233; }
+  .feed span { color: var(--muted); display: block; font-size: 11px; }
+
+  @media (max-width: 980px) {
+    .app { grid-template-columns: 1fr; }
+    aside { display: none; }
+    .kpis, .panels, .lower { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside>
+    <div class="brand"><i></i> Northbeam</div>
+    <div class="workspace"><span>WS</span><b>Acme Inc.</b><span>Pro</span></div>
+    <div class="nav">
+      <a class="on" href="#"><i></i> Overview</a>
+      <a href="#"><i></i> Funnels</a>
+      <a href="#"><i></i> Retention</a>
+      <a href="#"><i></i> Segments</a>
+      <a href="#"><i></i> Experiments</a>
+      <a href="#"><i></i> Settings</a>
+    </div>
+    <div class="aside-foot">v2.4.0 · <a href="index.html" style="color:inherit">swarm demo</a></div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div class="search">Search events, users, dashboards…</div>
+      <div class="btn">Share</div>
+      <div class="btn pri">New chart</div>
+      <div class="avatar"></div>
+    </div>
+
+    <div class="page-head">
+      <div>
+        <h1>Overview</h1>
+        <p>Last 30 days · Acme Inc. · all sources</p>
+      </div>
+      <div class="range"><span>24h</span><span>7d</span><span class="on">30d</span><span>90d</span></div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="label">Active users <span class="delta up">+12.4%</span></div><b>48,209</b><div class="label">vs 42,891 last period</div></div>
+      <div class="kpi"><div class="label">Sessions <span class="delta up">+8.1%</span></div><b>192,540</b><div class="label">4.0 per user</div></div>
+      <div class="kpi"><div class="label">Conversion <span class="delta down">−0.6%</span></div><b>3.82%</b><div class="label">checkout completed</div></div>
+      <div class="kpi"><div class="label">Revenue <span class="delta up">+21.7%</span></div><b>$284,120</b><div class="label">net of refunds</div></div>
+    </div>
+
+    <div class="panels">
+      <div class="panel">
+        <h2>Sessions per day</h2>
+        <p class="sub">30 days · compared to previous period</p>
+        <div class="chart">
+          <div class="bar"><i style="height:42%"></i><span>01</span></div>
+          <div class="bar"><i style="height:58%"></i><span>03</span></div>
+          <div class="bar"><i style="height:36%"></i><span>05</span></div>
+          <div class="bar"><i style="height:71%"></i><span>07</span></div>
+          <div class="bar"><i style="height:64%"></i><span>09</span></div>
+          <div class="bar"><i style="height:88%"></i><span>11</span></div>
+          <div class="bar"><i style="height:52%"></i><span>13</span></div>
+          <div class="bar"><i style="height:76%"></i><span>15</span></div>
+          <div class="bar"><i style="height:94%"></i><span>17</span></div>
+          <div class="bar"><i style="height:61%"></i><span>19</span></div>
+          <div class="bar"><i style="height:83%"></i><span>21</span></div>
+          <div class="bar"><i style="height:69%"></i><span>23</span></div>
+        </div>
+        <div class="legend"><span><i style="background:var(--blue)"></i>This period</span><span><i style="background:var(--green)"></i>Previous</span></div>
+      </div>
+
+      <div class="panel">
+        <h2>Traffic sources</h2>
+        <p class="sub">Share of sessions</p>
+        <div class="donut">
+          <div class="ring"></div>
+          <ul>
+            <li><i style="background:var(--blue)"></i> Organic <b>42%</b></li>
+            <li><i style="background:var(--green)"></i> Direct <b>26%</b></li>
+            <li><i style="background:var(--violet)"></i> Referral <b>18%</b></li>
+            <li><i style="background:#2a3448"></i> Other <b>14%</b></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="lower">
+      <div class="panel">
+        <h2>Top events</h2>
+        <p class="sub">Last 30 days</p>
+        <table>
+          <thead><tr><th>Event</th><th>Count</th><th>Users</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td><b>checkout_completed</b></td><td>18,402</td><td>12,884</td><td><span class="tag ok">stable</span></td></tr>
+            <tr><td><b>product_viewed</b></td><td>94,120</td><td>38,201</td><td><span class="tag ok">stable</span></td></tr>
+            <tr><td><b>signup_started</b></td><td>6,318</td><td>6,102</td><td><span class="tag warn">drop</span></td></tr>
+            <tr><td><b>payment_failed</b></td><td>412</td><td>388</td><td><span class="tag err">spike</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>Activity</h2>
+        <p class="sub">Team</p>
+        <ul class="feed">
+          <li><i></i><div><b>Maya</b> shipped the funnel v2 <span>4 min ago</span></div></li>
+          <li><i></i><div><b>Jonas</b> added a segment <span>22 min ago</span></div></li>
+          <li><i></i><div><b>Priya</b> commented on retention <span>1 h ago</span></div></li>
+          <li><i></i><div><b>Sam</b> connected a source <span>3 h ago</span></div></li>
+        </ul>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+  import { createSwarm } from "../dist/index.js";
+  createSwarm({ trigger: "load", autoScroll: true, speed: 1.7 });
+</script>
+</body>
+</html>

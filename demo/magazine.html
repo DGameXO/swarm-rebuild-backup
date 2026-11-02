@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OFFSET — issue 14</title>
+<meta name="description" content="OFFSET is a quarterly magazine about type, space and printed matter.">
+<style>
+  :root {
+    --ink: #0c0c0c;
+    --paper: #f7f5f0;
+    --red: #e63329;
+    --grey: #8c8a84;
+    --line: #d8d5cd;
+    --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --serif: "Times New Roman", Times, ui-serif, serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--sans); }
+  img { display: block; max-width: 100%; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 28px; }
+
+  .top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px; border-bottom: 2px solid var(--ink);
+  }
+  .mast { font: 900 34px/1 var(--sans); letter-spacing: -.05em; }
+  .mast i { color: var(--red); font-style: normal; }
+  .issue { font: 500 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .14em; }
+  .top nav { display: flex; gap: 18px; font-size: 12px; text-transform: uppercase; letter-spacing: .1em; }
+  .top nav a { color: var(--ink); text-decoration: none; }
+
+  .hero { padding: 40px 0 0; }
+  .hero h1 {
+    font: 900 clamp(64px, 13vw, 190px)/.82 var(--sans);
+    letter-spacing: -.06em; margin: 0; text-transform: uppercase;
+  }
+  .hero h1 span { color: var(--red); }
+  .hero .sub {
+    display: flex; justify-content: space-between; gap: 24px; align-items: end;
+    border-top: 2px solid var(--ink); margin-top: 26px; padding-top: 14px;
+    font: 500 12px/1.5 var(--mono); text-transform: uppercase; letter-spacing: .1em;
+  }
+
+  .feature { display: grid; grid-template-columns: 1.35fr .65fr; gap: 26px; padding: 34px 0 0; }
+  .feature img { width: 100%; height: 520px; object-fit: cover; }
+  .feature aside { display: flex; flex-direction: column; justify-content: space-between; }
+  .feature aside h2 { font: 400 34px/1.05 var(--serif); letter-spacing: -.02em; margin: 0 0 14px; }
+  .feature aside p { margin: 0 0 18px; color: #2a2a2a; }
+  .byline { font: 500 11px/1.5 var(--mono); text-transform: uppercase; letter-spacing: .12em; color: var(--grey); }
+
+  .marquee {
+    margin: 46px 0; border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink);
+    overflow: hidden; white-space: nowrap;
+  }
+  .marquee div {
+    display: inline-block; padding: 12px 0; font: 900 28px/1 var(--sans);
+    letter-spacing: -.02em; text-transform: uppercase;
+  }
+  .marquee em { color: var(--red); font-style: normal; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; padding-bottom: 40px; }
+  .item h3 { font: 400 21px/1.15 var(--serif); margin: 12px 0 6px; letter-spacing: -.01em; }
+  .item p { margin: 0; color: var(--grey); font-size: 13px; }
+  .item img { width: 100%; height: 260px; object-fit: cover; }
+  .item .tag { font: 500 10px/1 var(--mono); text-transform: uppercase; letter-spacing: .14em; color: var(--red); }
+
+  .quote {
+    background: var(--ink); color: var(--paper); padding: 64px 0; margin: 20px 0;
+  }
+  .quote .wrap { display: grid; grid-template-columns: 220px 1fr; gap: 40px; align-items: center; }
+  .quote img { width: 220px; height: 220px; object-fit: cover; }
+  .quote blockquote { margin: 0; font: 400 clamp(28px, 4vw, 52px)/1.05 var(--serif); letter-spacing: -.02em; }
+  .quote blockquote em { color: var(--red); font-style: italic; }
+
+  .index { padding: 20px 0 60px; }
+  .index h2 { font: 900 22px/1 var(--sans); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 18px; }
+  .index ol { list-style: none; margin: 0; padding: 0; border-top: 2px solid var(--ink); }
+  .index li {
+    display: grid; grid-template-columns: 70px 1fr 160px 100px; gap: 18px;
+    padding: 14px 0; border-bottom: 1px solid var(--line); align-items: baseline;
+  }
+  .index li b { font: 900 15px/1 var(--sans); }
+  .index li span { color: var(--grey); font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .1em; }
+
+  footer { border-top: 2px solid var(--ink); padding: 26px 0 60px; font-size: 12px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+  footer a { color: var(--ink); }
+
+  @media (max-width: 860px) {
+    .feature, .grid, .quote .wrap, .index li { grid-template-columns: 1fr; }
+    .feature img { height: 360px; }
+    .quote img { width: 120px; height: 120px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="mast">OFF<i>SET</i></div>
+  <div class="issue">Issue 14 · Type & space</div>
+  <nav><a href="index.html">← swarm demo</a><a href="#index">Index</a></nav>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Printed<br>matter,<br><span>still</span> alive.</h1>
+    <div class="sub">
+      <span>Quarterly · 148 pages · Oslo / Milan</span>
+      <span>Spring 2026</span>
+    </div>
+  </div>
+</header>
+
+<section class="feature">
+  <div class="wrap" style="display:contents">
+    <img src="https://picsum.photos/seed/offset-cover/1000/1300" alt="">
+    <aside>
+      <div>
+        <div class="byline">Cover story · 18 min</div>
+        <h2>The press that refused to close.</h2>
+        <p>
+          Inside a two-room workshop where every poster is still set by hand, one
+          letter at a time, and the ink is mixed from a recipe older than the
+          building itself.
+        </p>
+        <p>
+          We spent four days with the printers, the type cases and the smell of
+          solvent that never quite leaves.
+        </p>
+      </div>
+      <div class="byline">Words · Marta Lie · Photos · Jonas Vold</div>
+    </aside>
+  </div>
+</section>
+
+<div class="marquee"><div>Type · Paper · Ink · <em>Repetition</em> · Type · Paper · Ink · <em>Repetition</em></div></div>
+
+<section class="wrap grid">
+  <article class="item">
+    <img src="https://picsum.photos/seed/offset-a/800/700" alt="">
+    <div class="tag">Spreads</div>
+    <h3>A grid you can break</h3>
+    <p>Twelve columns, one rule: nothing lines up twice.</p>
+  </article>
+  <article class="item">
+    <img src="https://picsum.photos/seed/offset-b/800/700" alt="">
+    <div class="tag">Objects</div>
+    <h3>Scissors, 1964</h3>
+    <p>The tool that shaped a decade of covers.</p>
+  </article>
+  <article class="item">
+    <img src="https://picsum.photos/seed/offset-c/800/700" alt="">
+    <div class="tag">Process</div>
+    <h3>Registration marks</h3>
+    <p>Why the small crosses matter more than the image.</p>
+  </article>
+</section>
+
+<section class="quote">
+  <div class="wrap">
+    <img src="https://picsum.photos/seed/offset-face/400/400" alt="">
+    <blockquote>“A magazine is a <em>rhythm</em>, not a stack of pages.”</blockquote>
+  </div>
+</section>
+
+<section class="index wrap" id="index">
+  <h2>In this issue</h2>
+  <ol>
+    <li><b>01</b><span style="color:var(--ink)">The press that refused to close</span><span>Workshop</span><span>p. 12</span></li>
+    <li><b>02</b><span style="color:var(--ink)">A grid you can break</span><span>Typography</span><span>p. 34</span></li>
+    <li><b>03</b><span style="color:var(--ink)">Scissors, 1964</span><span>Objects</span><span>p. 58</span></li>
+    <li><b>04</b><span style="color:var(--ink)">Registration marks</span><span>Process</span><span>p. 76</span></li>
+    <li><b>05</b><span style="color:var(--ink)">Letters from Milan</span><span>Dispatch</span><span>p. 98</span></li>
+  </ol>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>OFFSET · a fictional magazine, built to test <a href="index.html">swarm-rebuild</a>.</div>
+    <div>Issue 14 · Spring 2026</div>
+  </div>
+</footer>
+
+<script type="module">
+  import { createSwarm } from "../dist/index.js";
+  createSwarm({ trigger: "load", autoScroll: true, speed: 1.7 });
+</script>
+</body>
+</html>
