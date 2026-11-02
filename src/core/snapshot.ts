@@ -496,7 +496,7 @@ export function captureModel(env: any, shot: any) {
       return { el: m, sig: src };
     }
     if (tag === "svg") {
-      const m = cloneStyled(el);
+      const m = cloneStyled(el) as SVGElement;
       m.setAttribute("width", "100%");
       m.setAttribute("height", "100%");
       m.style.display = "block";
@@ -872,7 +872,8 @@ export function captureModel(env: any, shot: any) {
         kinds.push(1);
         continue;
       }
-      if (n.nodeType !== 1 || SKIP.has(n.localName)) {
+      const element = n as Element;
+      if (n.nodeType !== 1 || SKIP.has(element.localName)) {
         kinds.push(0);
         continue;
       }
@@ -882,12 +883,12 @@ export function captureModel(env: any, shot: any) {
         continue;
       }
       let inl = false;
-      const nt = n.localName;
-      if (n.shadowRoot || nt === "slot") inl = false;
+      const nt = element.localName;
+      if (element.shadowRoot || nt === "slot") inl = false;
       else if (nt === "br" || nt === "wbr") inl = true;
-      else if (d === "inline") inl = allInline(n);
+      else if (d === "inline") inl = allInline(element);
       else if (directText && d.startsWith("inline")) inl = true;
-      if (inl && !anyText && /\S/.test(n.textContent)) anyText = true;
+      if (inl && !anyText && /\S/.test(n.textContent ?? "")) anyText = true;
       kinds.push(inl ? 1 : 2);
       if (!inl) allRun = false;
     }

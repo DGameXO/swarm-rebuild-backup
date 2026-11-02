@@ -1,12 +1,13 @@
 import { pageBackground } from "./clone.js";
+import type { Env } from "./model.js";
 // -------------------------------------------------------------------- env
 
-export function detectEnv() {
+export function detectEnv(): Env {
   const se = document.scrollingElement || document.documentElement;
   let scroller = se;
   let isRoot = true;
   if (se.scrollHeight <= innerHeight + 4) {
-    let best: any = null;
+    let best: Element | null = null;
     let bestArea = 0;
     const all = document.body ? document.body.getElementsByTagName("*") : [];
     for (let i = 0; i < all.length && i < 20000; i++) {
@@ -57,13 +58,13 @@ export function detectEnv() {
         ? Math.max(se.scrollHeight, document.body ? document.body.scrollHeight : 0)
         : scroller.scrollHeight,
     scrollWidth: () => (isRoot ? se.scrollWidth : scroller.scrollWidth),
-    scrollTo(y: any, x: any) {
+    scrollTo(y: number, x?: number) {
       const opts: ScrollToOptions = { top: y, behavior: "instant" };
       if (x != null) opts.left = x;
       if (isRoot) window.scrollTo(opts);
       else scroller.scrollTo(opts);
     },
-    scrollBy(dy: any) {
+    scrollBy(dy: number) {
       if (isRoot) window.scrollBy({ top: dy, behavior: "instant" });
       else scroller.scrollBy({ top: dy, behavior: "instant" });
     },
