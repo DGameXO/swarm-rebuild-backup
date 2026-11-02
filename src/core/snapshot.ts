@@ -9,6 +9,44 @@ import {
   TEXT_PROPS,
 } from "./constants.js";
 import { alphaOf, clamp, intersect, ltrb } from "./utils.js";
+import type {
+  Backdrop,
+  Clip,
+  Env,
+  Group,
+  Item,
+  Layer,
+  Model,
+  NewItem,
+  Point,
+  Rect,
+  Shot,
+  Task,
+  TaskSpec,
+} from "./model.js";
+
+interface CaptureCtx {
+  layer: Layer;
+  clip: Clip;
+  op: number;
+  boxItem: Item | null;
+  blend?: string;
+  zTop: number | null;
+  posd: boolean;
+  key?: () => number;
+}
+
+interface NodeInfo {
+  el: Element;
+  tag: string;
+  cls: string;
+  layer: Layer;
+  start: number;
+  end: number;
+  kids: NodeInfo[];
+  box: Rect;
+}
+
 import {
   addPseudos,
   canvasPixels,
@@ -22,15 +60,15 @@ import {
   sameColor,
   styleString,
 } from "./clone.js";
-export function captureModel(env: any, shot: any) {
+export function captureModel(env: Env, shot: Shot | null): Model {
   const { ox, oy, sx, sy, vw, vh } = env.geom();
   const docW = Math.max(env.scrollWidth(), vw);
   const docH = Math.min(Math.max(env.scrollHeight(), vh), MAX_WORLD_H);
-  const items: any[] = [];
-  const roots: any[] = [];
+  const items: Item[] = [];
+  const roots: NodeInfo[] = [];
   let order = 0;
   const csCache = new Map<any, any>();
-  const css = (el: any) => {
+  const css = (el: Element): CSSStyleDeclaration => {
     let c = csCache.get(el);
     if (!c) {
       c = getComputedStyle(el);
@@ -42,21 +80,21 @@ export function captureModel(env: any, shot: any) {
   const fullClip = { l: -1e9, t: -1e9, r: 1e9, b: 1e9 };
   const viewClip = { l: 0, t: 0, r: innerWidth, b: innerHeight };
   const pageBg = env.pageBg;
-  const floats: any[] = [];
-  const bars: any[] = [];
-  let portKey: any = null;
+  const floats: { el: Element; side: string; l: number; t: number; r: number; b: number }[] = [];
+  const bars: { node: NodeInfo | null; r: DOMRect; start: number; key: number }[] = [];
+  let portKey: number | null = null;
   const html = document.documentElement;
   const body = document.body;
 
-  const conv = (r: any, layer: any) =>
+  const conv = (r: DOMRect, layer: Layer): Rect =>
     layer === "world"
       ? { x: r.left - ox + sx, y: r.top - oy + sy, w: r.width, h: r.height }
       : { x: r.left, y: r.top, w: r.width, h: r.height };
-  const convClip = (c: any, layer: any) =>
+  const convClip = (c: Clip, layer: Layer): Clip =>
     layer === "world"
       ? { l: c.l - ox + sx, t: c.t - oy + sy, r: c.r - ox + sx, b: c.b - oy + sy }
       : { ...c };
-  const clipFor = (r: any, clip: any, layer: any) => {
+  const clipFor = (r: DOMRect, clip: Clip, layer: Layer): Clip | null => {
     if (
       r.left >= clip.l - 0.5 &&
       r.top >= clip.t - 0.5 &&
@@ -66,12 +104,13 @@ export function captureModel(env: any, shot: any) {
       return null;
     return convClip(clip, layer);
   };
-  const inDoc = (b: any, layer: any) =>
+  const inDoc = (b: Rect, layer: Layer): boolean =>
     layer === "world"
       ? b.x + b.w > 0 && b.x < docW && b.y + b.h > 0 && b.y < docH
       : b.x + b.w > 0 && b.x < innerWidth && b.y + b.h > 0 && b.y < innerHeight;
 
-  function add(it: any) {
+  function add(source: NewItem): Item {
+    const it = source as Item;
     it.id = items.length;
     it.v = 1;
     it.rv = 0;
@@ -84,7 +123,7 @@ export function captureModel(env: any, shot: any) {
     return it;
   }
 
-  function allInline(el: any) {
+  function allInline(el: Element): boolean {
     let v = inlineCache.get(el);
     if (v !== undefined) return v;
     v = !el.shadowRoot;
@@ -109,14 +148,14 @@ export function captureModel(env: any, shot: any) {
     return v;
   }
 
-  function rootStyle(cs: any, isRun: any) {
+  function rootStyle(cs: CSSStyleDeclaration, isRun: boolean): string {
     let s = styleString(cs, TEXT_PROPS);
     if (isRun)
       return (
         s +
         "display:block;padding:0;margin:0;box-sizing:border-box;width:100%;height:100%;position:relative;"
       );
-    const pad = (side: any) =>
+    const pad = (side: string): number =>
       (parseFloat(cs.getPropertyValue(`padding-${side}`)) || 0) +
       (parseFloat(cs.getPropertyValue(`border-${side}-width`)) || 0);
     let d = cs.display;
@@ -167,7 +206,13 @@ export function captureModel(env: any, shot: any) {
     return s + "margin:0;box-sizing:border-box;width:100%;height:100%;position:relative;";
   }
 
-  function textItem(base: any, root: any, tb: any, cs: any, extra: any = {}) {
+  function textItem(
+    base: Partial<Item>,
+    root: HTMLElement,
+    tb: Rect,
+    cs: CSSStyleDeclaration,
+    extra: Partial<Item> = {},
+  ): Item {
     const fs = parseFloat(cs.fontSize) || 16;
     const text = root.textContent.replace(/\s+/g, " ").trim();
     return add({
@@ -181,10 +226,16 @@ export function captureModel(env: any, shot: any) {
       text,
       sig: text,
       ...extra,
-    });
+    } as NewItem);
   }
 
-  function emitLeaf(el: any, cs: any, r: any, ctx: any, key: any) {
+  function emitLeaf(
+    el: Element,
+    cs: CSSStyleDeclaration,
+    r: DOMRect,
+    ctx: CaptureCtx,
+    key: number,
+  ): void {
     const root = document.createElement("div");
     root.setAttribute("style", rootStyle(cs, false));
     const clone = inert().importNode(el, true);
@@ -199,7 +250,7 @@ export function captureModel(env: any, shot: any) {
       root.style.paddingTop = Math.max(0, tr.top - r.top) + "px";
     // floats outside the leaf (figures, infoboxes) shape its line boxes: add invisible shims
     if (/^(block|list-item)$/.test(root.style.display)) {
-      const n = (p: any) => parseFloat(cs.getPropertyValue(p)) || 0;
+      const n = (p: string): number => parseFloat(cs.getPropertyValue(p)) || 0;
       const cl = r.left + n("border-left-width") + n("padding-left");
       const ct = r.top + n("border-top-width") + n("padding-top");
       const cr = r.right - n("border-right-width") - n("padding-right");
@@ -238,7 +289,7 @@ export function captureModel(env: any, shot: any) {
     );
   }
 
-  function emitRun(cs: any, run: any, ctx: any) {
+  function emitRun(cs: CSSStyleDeclaration, run: Node[], ctx: CaptureCtx): void {
     const rg = document.createRange();
     rg.setStartBefore(run[0]);
     rg.setEndAfter(run[run.length - 1]);
@@ -250,8 +301,9 @@ export function captureModel(env: any, shot: any) {
     const single = r.height < lhPx(cs) * 1.6;
     if (single) root.style.whiteSpace = "nowrap";
     for (const n of run) {
-      if (n.nodeType === 3) root.appendChild(document.createTextNode(n.data));
-      else root.appendChild(cloneStyled(n));
+      if (n.nodeType === Node.TEXT_NODE)
+        root.appendChild(document.createTextNode((n as Text).data));
+      else root.appendChild(cloneStyled(n as Element));
     }
     const box = conv(r, ctx.layer);
     if (!inDoc(box, ctx.layer)) return;
@@ -260,7 +312,7 @@ export function captureModel(env: any, shot: any) {
       {
         ...box,
         layer: ctx.layer,
-        key: ctx.key(),
+        key: ctx.key?.() ?? 0,
         op: ctx.op,
         clip: clipFor(r, ctx.clip, ctx.layer),
         parentBox: ctx.boxItem,
@@ -272,9 +324,16 @@ export function captureModel(env: any, shot: any) {
     );
   }
 
-  function lineItem(pts: any, stroke: any, sw: any, dash: any, ctx: any, key: any) {
-    const xs = pts.map((p: any) => p.x);
-    const ys = pts.map((p: any) => p.y);
+  function lineItem(
+    pts: Point[],
+    stroke: string,
+    sw: number,
+    dash: string | null,
+    ctx: CaptureCtx,
+    key: number,
+  ): Item {
+    const xs = pts.map((p) => p.x);
+    const ys = pts.map((p) => p.y);
     return add({
       kind: "line",
       x: Math.min(...xs),
@@ -298,7 +357,14 @@ export function captureModel(env: any, shot: any) {
     });
   }
 
-  function emitBox(el: any, cs: any, r: any, ctx: any, key: any, forceRect: any) {
+  function emitBox(
+    el: Element,
+    cs: CSSStyleDeclaration,
+    r: DOMRect,
+    ctx: CaptureCtx,
+    key: number,
+    forceRect: boolean,
+  ): Item | null {
     if (el === html) return null;
     const tag = el.localName;
     const bgc = cs.backgroundColor;
@@ -395,7 +461,14 @@ export function captureModel(env: any, shot: any) {
   // Decorative ::before/::after on containers (overlays, glows, standalone icons).
   // Their boxes aren't exposed, so derive them from the host box and the pseudo's insets.
   const PSEUDO_EL = { localName: "pseudo" };
-  function emitPseudoBox(el: any, cs: any, r: any, ctx: any, which: any, empty: any) {
+  function emitPseudoBox(
+    el: Element,
+    cs: CSSStyleDeclaration,
+    r: DOMRect,
+    ctx: CaptureCtx,
+    which: string,
+    empty: boolean,
+  ): void {
     const ps = getComputedStyle(el, which);
     const c = ps.content;
     if (
@@ -408,7 +481,7 @@ export function captureModel(env: any, shot: any) {
       return;
     const pop = parseFloat(ps.opacity);
     if (!(pop > 0.03)) return;
-    const n = (v: any) => parseFloat(v) || 0;
+    const n = (v: string): number => parseFloat(v) || 0;
     const w = parseFloat(ps.width);
     const h = parseFloat(ps.height);
     if (!(w > 0 && h > 0)) return;
@@ -446,7 +519,14 @@ export function captureModel(env: any, shot: any) {
       }
       const fake = { left: L, top: T, right: L + bw, bottom: T + bh, width: bw, height: bh };
       if (!intersect(ltrb(fake), ctx.clip)) return;
-      emitBox(PSEUDO_EL, ps, fake, { ...ctx, op: ctx.op * pop }, ctx.key(), false);
+      emitBox(
+        PSEUDO_EL as unknown as Element,
+        ps,
+        fake as DOMRect,
+        { ...ctx, op: ctx.op * pop },
+        ctx.key?.() ?? 0,
+        false,
+      );
     } else {
       const cl = pad.l + n(cs.paddingLeft);
       const ct = pad.t + n(cs.paddingTop);
@@ -478,15 +558,26 @@ export function captureModel(env: any, shot: any) {
       } else return;
       const fake = { left: L, top: T, right: L + w, bottom: T + h, width: w, height: h };
       if (!intersect(ltrb(fake), ctx.clip)) return;
-      emitBox(PSEUDO_EL, ps, fake, { ...ctx, op: ctx.op * pop }, ctx.key(), false);
+      emitBox(
+        PSEUDO_EL as unknown as Element,
+        ps,
+        fake as DOMRect,
+        { ...ctx, op: ctx.op * pop },
+        ctx.key?.() ?? 0,
+        false,
+      );
     }
   }
 
-  function mediaFor(el: any, cs: any, r: any) {
+  function mediaFor(
+    el: Element,
+    cs: CSSStyleDeclaration,
+    r: DOMRect,
+  ): { el: Element; sig: string } | null {
     const tag = el.localName;
     const fit = `object-fit:${cs.objectFit};object-position:${cs.objectPosition};`;
     if (tag === "img") {
-      const src = imgSrc(el);
+      const src = imgSrc(el as HTMLImageElement);
       if (!src) return null;
       const m = document.createElement("img");
       m.src = src;
@@ -516,7 +607,7 @@ export function captureModel(env: any, shot: any) {
       const h = m.outerHTML;
       return { el: m, sig: h.length + ":" + h.slice(0, 160) };
     }
-    const imgOf = (src: any, extra: any = {}) => {
+    const imgOf = (src: string, extra: Partial<Item> = {}): { el: Element; sig: string } => {
       const m = document.createElement("img");
       m.src = src;
       m.setAttribute("style", (extra || "") + "display:block;width:100%;height:100%;");
@@ -534,13 +625,14 @@ export function captureModel(env: any, shot: any) {
       if (crop) return imgOf(crop);
     }
     if (tag === "video") {
-      let src = el.poster || "";
-      if (!src && el.videoWidth) {
+      const video = el as HTMLVideoElement;
+      let src = video.poster || "";
+      if (!src && video.videoWidth) {
         try {
           const c = document.createElement("canvas");
-          c.width = el.videoWidth;
-          c.height = el.videoHeight;
-          c.getContext("2d")!.drawImage(el, 0, 0);
+          c.width = video.videoWidth;
+          c.height = video.videoHeight;
+          c.getContext("2d")!.drawImage(video, 0, 0);
           src = c.toDataURL("image/jpeg", 0.82);
         } catch (_) {}
       }
@@ -555,7 +647,7 @@ export function captureModel(env: any, shot: any) {
       return { el: d, sig: "video" };
     }
     if (tag === "canvas") {
-      const src = canvasPixels(el);
+      const src = canvasPixels(el as HTMLCanvasElement);
       if (src) return imgOf(src);
       return null;
     }
@@ -563,7 +655,10 @@ export function captureModel(env: any, shot: any) {
     const d = document.createElement("div");
     let host = "";
     try {
-      host = new URL(el.src || el.data || "", location.href).hostname.replace(/^www\./, "");
+      host = new URL(
+        (el as HTMLImageElement).src || (el as HTMLObjectElement).data || "",
+        location.href,
+      ).hostname.replace(/^www\./, "");
     } catch (_) {}
     d.setAttribute(
       "style",
@@ -573,13 +668,20 @@ export function captureModel(env: any, shot: any) {
     return { el: d, sig: "frame:" + host };
   }
 
-  function emitMedia(el: any, cs: any, r: any, ctx: any, key: any) {
-    let src = el;
+  function emitMedia(
+    el: Element,
+    cs: CSSStyleDeclaration,
+    r: DOMRect,
+    ctx: CaptureCtx,
+    key: number,
+  ): void {
+    let src: Element = el;
     let scs = cs;
     if (el.localName === "picture") {
-      src = el.querySelector("img");
-      if (!src) return;
-      scs = css(src);
+      const img = el.querySelector("img");
+      if (!img) return;
+      src = img;
+      scs = css(img);
     }
     const m = mediaFor(src, scs, r);
     if (!m) return;
@@ -617,7 +719,13 @@ export function captureModel(env: any, shot: any) {
     });
   }
 
-  function emitForm(el: any, cs: any, r: any, ctx: any, key: any) {
+  function emitForm(
+    el: Element,
+    cs: CSSStyleDeclaration,
+    r: DOMRect,
+    ctx: CaptureCtx,
+    key: number,
+  ): void {
     const tag = el.localName;
     const type = (el.getAttribute("type") || "").toLowerCase();
     if (type === "hidden") return;
@@ -628,7 +736,7 @@ export function captureModel(env: any, shot: any) {
       s.setAttribute("viewBox", "0 0 16 16");
       s.setAttribute("width", "100%");
       s.setAttribute("height", "100%");
-      const on = el.checked;
+      const on = (el as HTMLInputElement).checked;
       s.innerHTML =
         type === "radio"
           ? `<circle cx="8" cy="8" r="7" fill="#fff" stroke="${on ? accent : "#767676"}" stroke-width="1.2"/>${on ? `<circle cx="8" cy="8" r="4" fill="${accent}"/>` : ""}`
@@ -655,20 +763,22 @@ export function captureModel(env: any, shot: any) {
     const boxIt = emitBox(el, cs, r, ctx, key, false);
     let text = "";
     let ph = false;
-    if (tag === "select")
-      text = (el.selectedOptions && el.selectedOptions[0] && el.selectedOptions[0].text) || "";
-    else if (["submit", "button", "reset"].includes(type))
-      text = el.value || (type === "submit" ? "Submit" : type === "reset" ? "Reset" : "");
-    else if (type === "password") text = "•".repeat((el.value || "").length);
+    const field = el as HTMLInputElement;
+    if (tag === "select") {
+      const select = el as HTMLSelectElement;
+      text = select.selectedOptions[0]?.text || "";
+    } else if (["submit", "button", "reset"].includes(type))
+      text = field.value || (type === "submit" ? "Submit" : type === "reset" ? "Reset" : "");
+    else if (type === "password") text = "•".repeat((field.value || "").length);
     else if (["range", "color", "file", "image"].includes(type)) text = "";
-    else text = el.value || "";
-    if (!text && el.placeholder) {
-      text = el.placeholder;
+    else text = field.value || "";
+    if (!text && field.placeholder) {
+      text = field.placeholder;
       ph = true;
     }
     if (!text.trim()) return;
     const root = document.createElement("div");
-    const pad = (side: any) =>
+    const pad = (side: string): number =>
       (parseFloat(cs.getPropertyValue(`padding-${side}`)) || 0) +
       (parseFloat(cs.getPropertyValue(`border-${side}-width`)) || 0);
     const isButton = ["submit", "button", "reset"].includes(type);
@@ -697,7 +807,7 @@ export function captureModel(env: any, shot: any) {
     );
   }
 
-  function walk(el: any, ctx: any, parent: any) {
+  function walk(el: Element, ctx: CaptureCtx, parent: NodeInfo | null): void {
     if (items.length >= MAX_ITEMS) return;
     const tag = el.localName;
     if (SKIP.has(tag) || el === env.host) return;
@@ -706,16 +816,16 @@ export function captureModel(env: any, shot: any) {
     if (disp === "none") return;
     if (disp === "contents") {
       // transparent wrapper (incl. <slot>): its loose text still renders, styled by it
-      let run: any[] = [];
+      let run: Node[] = [];
       const flushRun = () => {
-        if (ctx.key && run.some((n) => /\S/.test(n.data))) emitRun(cs, run, ctx);
+        if (run.some((n) => /\S/.test(n.textContent ?? ""))) emitRun(cs, run, ctx);
         run = [];
       };
       for (const c of kidsOf(el)) {
         if (c.nodeType === 3) run.push(c);
         else if (c.nodeType === 1) {
           flushRun();
-          walk(c, ctx, parent);
+          walk(c as Element, ctx, parent);
         }
       }
       flushRun();
@@ -736,7 +846,7 @@ export function captureModel(env: any, shot: any) {
     if (cs.position === "absolute" && /rect\(0px,? 0px,? 0px,? 0px\)/.test(cs.clip)) return;
     if (/inset\(50%\)|circle\(0px/.test(cs.clipPath)) return;
     if (cs.float !== "none" && r.width > 1 && r.height > 1) {
-      const n = (p: any) => parseFloat(cs.getPropertyValue(p)) || 0;
+      const n = (p: string): number => parseFloat(cs.getPropertyValue(p)) || 0;
       floats.push({
         el,
         side: cs.float,
@@ -838,7 +948,7 @@ export function captureModel(env: any, shot: any) {
         t: r.top + bt,
         r: r.right - br,
         b: r.bottom - bb,
-      });
+      }) as Clip;
       if (!kidClip) {
         node.end = items.length;
         return;
@@ -855,16 +965,22 @@ export function captureModel(env: any, shot: any) {
       return;
     }
     let kids = kidsOf(el);
-    if (tag === "details" && !el.open) {
-      const sum = kids.find((n: any) => n.nodeType === 1 && n.localName === "summary");
+    if (tag === "details" && !(el as HTMLDetailsElement).open) {
+      const sum = kids.find(
+        (n) => n.nodeType === Node.ELEMENT_NODE && (n as Element).localName === "summary",
+      );
       kids = sum ? [sum] : [];
     }
     const emptyEl = !kids.some(
-      (k: any) => (k.nodeType === 3 && /\S/.test(k.data)) || k.nodeType === 1,
+      (k) =>
+        (k.nodeType === Node.TEXT_NODE && /\S/.test((k as Text).data)) ||
+        k.nodeType === Node.ELEMENT_NODE,
     );
     const pctx = { ...kctx, layer, clip };
-    const directText = kids.some((n: any) => n.nodeType === 3 && /\S/.test(n.data));
-    const kinds: any[] = [];
+    const directText = kids.some(
+      (n) => n.nodeType === Node.TEXT_NODE && /\S/.test((n as Text).data),
+    );
+    const kinds: number[] = [];
     let allRun = !el.shadowRoot;
     let anyText = directText;
     for (const n of kids) {
@@ -877,7 +993,7 @@ export function captureModel(env: any, shot: any) {
         kinds.push(0);
         continue;
       }
-      const d = css(n).display;
+      const d = css(n as Element).display;
       if (d === "none") {
         kinds.push(0);
         continue;
@@ -904,24 +1020,24 @@ export function captureModel(env: any, shot: any) {
       if (emit && visible) emitPseudoBox(el, cs, r, pctx, "::after", emptyEl);
     };
 
-    let run: any[] = [];
+    let run: Node[] = [];
     const flush = () => {
       if (!run.length) return;
       const hasText = run.some((n) =>
-        n.nodeType === 3 ? /\S/.test(n.data) : /\S/.test(n.textContent),
+        n.nodeType === 3 ? /\S/.test((n as Text).data) : /\S/.test(n.textContent ?? ""),
       );
       if (hasText) {
         if (visible) emitRun(cs, run, kctx);
       } else {
-        for (const n of run) if (n.nodeType === 1) walk(n, kctx, node);
+        for (const n of run) if (n.nodeType === 1) walk(n as Element, kctx, node);
       }
       run = [];
     };
-    kids.forEach((n: any, i: any) => {
+    kids.forEach((n, i) => {
       if (kinds[i] === 1) run.push(n);
       else if (kinds[i] === 2) {
         flush();
-        walk(n, kctx, node);
+        walk(n as Element, kctx, node);
       }
     });
     flush();
@@ -938,13 +1054,13 @@ export function captureModel(env: any, shot: any) {
   );
 
   // --------------------------------------------- repeated components (dup)
-  const groups: any[] = [];
-  const kindsSig = (n: any) => {
+  const groups: Group[] = [];
+  const kindsSig = (n: NodeInfo): string => {
     let s = "";
     for (let i = n.start; i < n.end; i++) s += items[i].kind[0];
     return s;
   };
-  const similar = (a: any, b: any, loose: any) =>
+  const similar = (a: Rect, b: Rect, loose: boolean): boolean =>
     a.w > 0 &&
     b.w > 0 &&
     a.h > 0 &&
@@ -952,39 +1068,44 @@ export function captureModel(env: any, shot: any) {
     a.h / b.h < 1.8 &&
     b.h / a.h < 1.8 &&
     (loose || (a.w / b.w < 1.6 && b.w / a.w < 1.6));
-  function findGroups(node: any, inCopy: any) {
+  function findGroups(node: NodeInfo, inCopy: boolean): void {
     if (inCopy) return;
-    const buckets = new Map<any, any>();
+    const buckets = new Map<string, NodeInfo[]>();
     for (const k of node.kids) {
       const n = k.end - k.start;
       if (n < 1 || n > 48) continue;
       // long single paragraphs read better typed than duplicated
-      if (n === 1 && items[k.start].kind === "text" && items[k.start].text.length > 40) continue;
+      const first = items[k.start]!;
+      if (n === 1 && first.kind === "text" && (first.text ?? "").length > 40) continue;
       const sig = `${k.tag}|${k.cls}|${k.layer}|${kindsSig(k)}`;
       if (!buckets.has(sig)) buckets.set(sig, []);
-      buckets.get(sig).push(k);
+      buckets.get(sig)!.push(k);
     }
     const copies = new Set();
     for (const list of buckets.values()) {
       if (list.length < 2) continue;
       const m = list[0];
       const loose = m.end - m.start === 1 && items[m.start].kind === "text";
-      const members = list.filter((k: any) => similar(k.box, m.box, loose));
+      const members = list.filter((k) => similar(k.box, m.box, loose));
       if (members.length < 2) continue;
-      const g = { id: groups.length, master: members[0], copies: members.slice(1) };
+      const g = {
+        id: groups.length,
+        master: members[0],
+        copies: members.slice(1),
+      } as unknown as Group;
       groups.push(g);
-      for (const c of g.copies) copies.add(c);
+      for (const c of g.copies!) copies.add(c);
     }
     for (const k of node.kids) findGroups(k, copies.has(k));
   }
   for (const r of roots) findGroups(r, false);
 
   for (const g of groups) {
-    for (const c of g.copies) {
+    for (const c of g.copies!) {
       for (let i = c.start; i < c.end; i++) {
         const it = items[i];
         if (it.copyOf) continue;
-        it.copyOf = items[g.master.start + (i - c.start)];
+        it.copyOf = items[g.master!.start + (i - c.start)];
         it.group = g;
       }
     }
@@ -993,16 +1114,16 @@ export function captureModel(env: any, shot: any) {
   const twinKey = new Map<any, any>();
   for (const it of items) {
     if (it.kind !== "text" || it.copyOf || !it.text) continue;
-    const k = `${it.layer}|${Math.round(it.tb.x / 4)}|${Math.round(it.tb.y / 4)}|${it.text}`;
+    const k = `${it.layer}|${Math.round(it.tb!.x / 4)}|${Math.round(it.tb!.y / 4)}|${it.text}`;
     const m = twinKey.get(k);
     if (m) it.twinOf = m;
     else twinKey.set(k, it);
   }
 
   // ------------------------------------------------------------- tasks
-  const tasks: any[] = [];
-  const mk = (y: any, spec: any, deps: any, layer: any) => {
-    const t = { id: tasks.length, y, spec, deps, state: "wait", doneAt: 0, layer };
+  const tasks: Task[] = [];
+  const mk = (y: number, spec: TaskSpec, deps: Task[], layer: Layer): Task => {
+    const t = { id: tasks.length, y, spec, deps, state: "wait", doneAt: 0, layer, gate: y } as Task;
     tasks.push(t);
     return t;
   };
@@ -1014,37 +1135,42 @@ export function captureModel(env: any, shot: any) {
       continue;
     }
     const deps = it.parentBox && it.parentBox.final ? it.parentBox.final : [];
-    const y = it.kind === "text" ? it.tb.y : it.y;
-    it.task = mk(y, { type: (KIND_TASK as any)[it.kind], it }, deps, it.layer);
+    const y = it.kind === "text" ? it.tb!.y : it.y;
+    it.task = mk(
+      y,
+      { type: KIND_TASK[it.kind as keyof typeof KIND_TASK] as TaskSpec["type"], it },
+      deps,
+      it.layer,
+    );
     it.final = [it.task];
   }
   // inner groups first so outer copies can wait for them
   for (let gi = groups.length - 1; gi >= 0; gi--) {
     const g = groups[gi];
-    const mItems = items.slice(g.master.start, g.master.end);
-    const masterFinals: any[] = [];
+    const mItems = items.slice(g.master!.start, g.master!.end);
+    const masterFinals: Task[] = [];
     for (const it of mItems) if (it.final) masterFinals.push(...it.final);
     if (
-      g.master.start < g.master.end &&
-      items[g.master.start].parentBox &&
-      items[g.master.start].parentBox.final
+      g.master!.start < g.master!.end &&
+      items[g.master!.start]!.parentBox &&
+      items[g.master!.start]!.parentBox!.final
     )
-      masterFinals.push(...items[g.master.start].parentBox.final);
-    g.src = { items: mItems, box: g.master.box };
-    g.dst = g.copies.map((c: any, k: any) => {
+      masterFinals.push(...items[g.master!.start]!.parentBox!.final!);
+    g.src = { items: mItems, box: g.master!.box };
+    g.dst = g.copies!.map((c, k) => {
       const its = items.slice(c.start, c.end).filter((it) => it.group === g);
-      const minY = Math.min(...its.map((it) => (it.kind === "text" ? it.tb.y : it.y)));
-      const task = mk(minY, { type: "dup", g, k }, masterFinals, c.layer);
+      const minY = Math.min(...its.map((it) => (it.kind === "text" ? it.tb!.y : it.y)));
+      const task = mk(minY, { type: "dup", g, k }, masterFinals, c.layer ?? "world");
       for (const it of its) {
         it.dupTask = task;
         it.final = [task];
-        const m = it.copyOf;
-        let type: any = null;
+        const m = it.copyOf!;
+        let type: "edit" | "swap" | "restyle" | null = null;
         if (it.kind === "text" && it.sig !== m.sig) type = "edit";
         else if (it.kind === "image" && it.sig !== m.sig) type = "swap";
         else if (it.kind === "rect" && it.sig !== m.sig) type = "restyle";
         if (type) {
-          it.editTask = mk(it.kind === "text" ? it.tb.y : it.y, { type, it }, [task], it.layer);
+          it.editTask = mk(it.kind === "text" ? it.tb!.y : it.y, { type, it }, [task], it.layer);
           it.final = [task, it.editTask];
         }
       }
@@ -1053,35 +1179,36 @@ export function captureModel(env: any, shot: any) {
   }
 
   // -------------------------------------------------- guides & snapping
-  const guides: any[] = [];
+  const guides: Group[] = [];
   const texts = items.filter(
-    (it) => it.kind === "text" && it.task && it.layer === "world" && it.fs >= 13 && it.tb.w > 30,
+    (it) =>
+      it.kind === "text" && it.task && it.layer === "world" && (it.fs ?? 0) >= 13 && it.tb!.w > 30,
   );
   const BAND = 900;
   const bands = new Map<any, any>();
   for (const it of texts) {
-    const k = Math.floor(it.tb.y / BAND);
+    const k = Math.floor(it.tb!.y / BAND);
     if (!bands.has(k)) bands.set(k, []);
     bands.get(k).push(it);
   }
   for (const [, list] of [...bands.entries()].sort((a, b) => a[0] - b[0])) {
     if (guides.length >= 16) break;
-    const byX = new Map<any, any>();
+    const byX = new Map<number, Item[]>();
     for (const it of list) {
-      const x = Math.round(it.tb.x);
+      const x = Math.round(it.tb!.x);
       if (!byX.has(x)) byX.set(x, []);
-      byX.get(x).push(it);
+      byX.get(x)!.push(it);
     }
-    let best: any = null;
+    let best: [number, Item[]] | null = null;
     for (const [x, l] of byX)
-      if (l.length >= 3 && (!best || l.length > best[1].length)) best = [x, l];
+      if (l.length >= 3 && (!best || l.length > best[1]!.length)) best = [x, l];
     if (best) {
-      const top = Math.min(...best[1].map((m: any) => m.tb.y));
+      const top = Math.min(...best[1].map((m) => m.tb!.y));
       const members = best[1]
-        .filter((m: any) => m.tb.y < top + 450)
-        .sort((a: any, b: any) => b.fs - a.fs)
+        .filter((m) => m.tb!.y < top + 450)
+        .sort((a, b) => (b.fs ?? 0) - (a.fs ?? 0))
         .slice(0, 2);
-      const g: any = {
+      const g: Group = {
         axis: "x",
         pos: best[0],
         cur: best[0],
@@ -1091,27 +1218,28 @@ export function captureModel(env: any, shot: any) {
         vis: false,
       };
       guides.push(g);
-      const gy = Math.min(...members.map((m: any) => m.tb.y)) - 30;
+      const gy = Math.min(...members.map((m) => m.tb!.y)) - 30;
       g.task = mk(gy, { type: "guide", g }, [], "world");
       g.deps = [];
       for (const m of members) {
-        m.task.spec.snap = g;
-        m.task.spec.snapDx = m.tb.x - best[0];
-        g.deps.push(m.task);
+        m.task!.spec.snap = g;
+        m.task!.spec.snapDx = m.tb!.x - best[0];
+        g.deps!.push(m.task!);
       }
     }
-    const byY = new Map<any, any>();
+    const byY = new Map<number, Item[]>();
     for (const it of list) {
-      const y = Math.round(it.tb.y);
+      const y = Math.round(it.tb!.y);
       if (!byY.has(y)) byY.set(y, []);
-      byY.get(y).push(it);
+      byY.get(y)!.push(it);
     }
-    let row: any = null;
-    for (const [y, l] of byY) if (l.length >= 3 && (!row || l.length > row[1].length)) row = [y, l];
+    let row: [number, Item[]] | null = null;
+    for (const [y, l] of byY)
+      if (l.length >= 3 && (!row || l.length > row[1]!.length)) row = [y, l];
     if (row) {
-      const m = row[1].find((it: any) => !it.task.spec.snap);
+      const m = row[1].find((it) => !it.task!.spec.snap);
       if (m) {
-        const g: any = {
+        const g: Group = {
           axis: "y",
           pos: row[0],
           cur: row[0],
@@ -1122,13 +1250,14 @@ export function captureModel(env: any, shot: any) {
         };
         guides.push(g);
         g.task = mk(row[0] - 30, { type: "guide", g }, [], "world");
-        g.deps = [m.task];
-        m.task.spec.snap = g;
+        g.deps = [m.task!];
+        m.task!.spec.snap = g;
       }
     }
   }
   for (const it of items)
-    if (it.kind === "text" && it.task && it.fs >= 28 && it.tb.h < 400) it.task.spec.grow = true;
+    if (it.kind === "text" && it.task && (it.fs ?? 0) >= 28 && it.tb!.h < 400)
+      it.task.spec.grow = true;
   // deps always have lower ids, so one reverse pass propagates the earliest need
   for (const t of tasks) t.gate = t.y;
   for (let i = tasks.length - 1; i >= 0; i--)
@@ -1136,7 +1265,7 @@ export function captureModel(env: any, shot: any) {
 
   // A sticky header that is transparent at the top of the page still needs
   // something behind it once content scrolls underneath (sites add it on scroll).
-  const backdrops: any[] = [];
+  const backdrops: Backdrop[] = [];
   if (pageBg.image === "none")
     for (const b of bars) {
       const area = b.r.width * b.r.height;
@@ -1146,8 +1275,8 @@ export function captureModel(env: any, shot: any) {
           it.layer === "over" &&
           it.kind === "rect" &&
           it.w * it.h >= area * 0.85 &&
-          /rgba?\(/.test(it.css) &&
-          !/background-color:\s*rgba\([^)]*,\s*0(\.\d+)?\)/.test(it.css),
+          /rgba?\(/.test(it.css ?? "") &&
+          !/background-color:\s*rgba\([^)]*,\s*0(\.\d+)?\)/.test(it.css ?? ""),
       );
       if (!covered)
         backdrops.push({

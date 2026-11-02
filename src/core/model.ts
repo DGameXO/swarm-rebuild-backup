@@ -125,7 +125,7 @@ export interface Item {
   op: number;
   clip: Clip | null;
   parentBox: Item | null;
-  blend: string;
+  blend?: string;
   /** Signature used to detect duplicate siblings. */
   sig: string;
 
@@ -161,7 +161,7 @@ export interface Item {
   pts?: Point[];
   stroke?: string;
   sw?: number;
-  dash?: string;
+  dash?: string | null;
   placed?: number;
   shut?: boolean;
   edit?: boolean;
@@ -175,6 +175,8 @@ export interface Item {
   copyOf?: Item | null;
   twinOf?: Item | null;
   deps?: Task[];
+  dupTask?: Task | null;
+  editTask?: Task | null;
   node?: ItemNode | null;
   start?: number;
   done?: boolean;
@@ -187,6 +189,8 @@ export interface Item {
   _mv?: HTMLElement | null;
   _tv?: number;
 }
+
+export type NewItem = Omit<Item, "id" | "v" | "rv" | "vis" | "dx" | "dy" | "scale" | "mode">;
 
 export interface Task {
   id: number;
@@ -204,7 +208,7 @@ export interface Task {
 
 /** A task carries the choreography for one item, group or guide. */
 export interface TaskSpec {
-  type: "rect" | "text" | "image" | "line" | "guide" | "dup";
+  type: "rect" | "text" | "image" | "line" | "guide" | "dup" | "edit" | "swap" | "restyle";
   it?: Item;
   g?: Group;
   snap?: Group;
@@ -238,6 +242,7 @@ export interface Agent {
 }
 
 export interface Group {
+  id?: number;
   axis: "x" | "y";
   pos: number;
   cur: number;
@@ -245,9 +250,12 @@ export interface Group {
   flash: number;
   dragging: boolean;
   vis: boolean;
-  task: Task;
-  deps: Task[];
-  master?: { start: number; end: number };
+  task?: Task;
+  deps?: Task[];
+  master?: { start: number; end: number; box?: Rect };
+  copies?: { start: number; end: number; layer?: Layer; box?: Rect }[];
+  src?: { items: Item[]; box?: Rect };
+  dst?: { items: Item[]; box?: Rect; task: Task }[];
 }
 
 export interface Backdrop {
@@ -255,7 +263,7 @@ export interface Backdrop {
   y: number;
   w: number;
   h: number;
-  key: string;
+  key: string | number;
   color: string;
 }
 
