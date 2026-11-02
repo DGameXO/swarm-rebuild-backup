@@ -11,9 +11,9 @@
  *   - the tarball stays under a size budget, so a stray asset is caught in
  *     CI instead of after the release.
  */
-import { readFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
-import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 const [tarball] = process.argv.slice(2);
 if (!tarball) {
@@ -22,18 +22,19 @@ if (!tarball) {
 }
 
 const MAX_UNPACKED_BYTES = 950 * 1024;
-
-/** `npm-cli.js` next to the running Node binary: no shell, no `.cmd` shim. */
-function npmCli() {
-  return join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
-}
-
-const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
-const raw = execFileSync(
-  process.execPath,
-  [npmCli(), "pack", tarball, "--dry-run", "--json", "--ignore-scripts"],
-  { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
+const pkg = JSON.parse(
+  readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8"),
 );
+
+// `shell: true` is what makes this work on Windows, where `npm` is a `.cmd`
+// shim. The only variable is the tarball name emitted by our own build.
+const command = `npm pack ${JSON.stringify(tarball)} --dry-run --json --ignore-scripts`;
+const raw = execFileSync(command, {
+  encoding: "utf8",
+  stdio: ["ignore", "pipe", "inherit"],
+  shell: true,
+});
+
 const report = JSON.parse(raw.replace(/^\uFEFF/, ""));
 const list = Object.values(report)[0];
 
