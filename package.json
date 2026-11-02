@@ -1,6 +1,6 @@
 {
   "name": "swarm-rebuild",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Wipe a page to a blank canvas and let a swarm of multiplayer cursors rebuild it, live.",
   "license": "MIT",
   "type": "module",

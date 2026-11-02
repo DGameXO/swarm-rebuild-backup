@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/MaximeBoulle/Swarm-Rebuild/compare/v0.2.3...v0.2.4) (2026-11-02)
+
+
+### Bug Fixes
+
+* **release:** publish from release.yml so the trusted publisher matches ([01e766d](https://github.com/MaximeBoulle/Swarm-Rebuild/commit/01e766d2955ef4e2364cd122e52c21b5dc1a786c))
+
 ## [0.2.3](https://github.com/MaximeBoulle/Swarm-Rebuild/compare/v0.2.2...v0.2.3) (2026-11-02)
 
 
