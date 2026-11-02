@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.3](https://github.com/MaximeBoulle/Swarm-Rebuild/compare/v0.2.2...v0.2.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ci:** resolve pack-check npm CLI and pin zizmor to a real tag ([eed6ccf](https://github.com/MaximeBoulle/Swarm-Rebuild/commit/eed6ccfd8856e6294db4bce2486f188df4884ee4))
+
+
+### Refactors
+
+* replace hand-written packaging checks with publint ([2439acb](https://github.com/MaximeBoulle/Swarm-Rebuild/commit/2439acb2559df0f6e9bf504a5b9cf181ddbbbd26))
+
 ## [0.2.1](https://github.com/MaximeBoulle/Swarm-Rebuild/compare/v0.2.0...v0.2.1) (2026-11-02)
 
 
