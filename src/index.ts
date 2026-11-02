@@ -38,10 +38,11 @@ function resolveTarget(target: SwarmOptions["target"]): Element {
 }
 
 /**
- * Adapter around the engine.
+ * Thin adapter over the engine.
  *
- * The engine owns the overlay, the HUD and the keyboard shortcuts; this class
- * only decides when to start it and bridges the library options onto it.
+ * The engine owns the overlay, the HUD and the keyboard shortcuts. This class
+ * only translates library options into engine options and decides when to
+ * start it — no DOM probing, no polling.
  */
 class SwarmImpl implements Swarm {
   private observer: IntersectionObserver | null = null;
@@ -66,8 +67,11 @@ class SwarmImpl implements Swarm {
   }
 
   start(): void {
-    core.start();
-    this.afterStart();
+    core.start({
+      autoScroll: this.options.autoScroll ?? false,
+      speed: this.options.speed ?? 1,
+      onComplete: this.options.onComplete,
+    });
   }
 
   stop(): void {
@@ -76,8 +80,7 @@ class SwarmImpl implements Swarm {
 
   replay(): void {
     core.stop(false);
-    core.start();
-    this.afterStart();
+    this.start();
   }
 
   destroy(): void {
@@ -87,38 +90,6 @@ class SwarmImpl implements Swarm {
     this.observer = null;
     core.stop(false);
     this.options.onDestroy?.();
-  }
-
-  /** Bridge library options onto the app once it has booted. */
-  private afterStart(): void {
-    const startY = window.scrollY;
-    let tries = 0;
-    let returned = false;
-
-    const tick = (): void => {
-      const app = core.getApp();
-      const root = document.querySelector("swarm-rebuild")?.shadowRoot;
-
-      if (app?.engine && this.options.speed) app.engine.speed = this.options.speed;
-      if (root && this.options.autoScroll) {
-        const tour = root.querySelector('[data-a="tour"]') as HTMLButtonElement | null;
-        if (tour && !tour.classList.contains("on")) tour.click();
-      }
-
-      // Once the page is fully rebuilt, bring the visitor back where they were.
-      if (app?.complete && !returned) {
-        returned = true;
-        if (this.options.autoScroll) {
-          window.scrollTo({ top: startY, behavior: "smooth" });
-        }
-        this.options.onComplete?.();
-        return;
-      }
-
-      if (!app?.complete && ++tries < 600) setTimeout(tick, 250);
-    };
-
-    setTimeout(tick, 150);
   }
 }
 

@@ -1,5 +1,5 @@
 import { MIN_AGENTS } from "./constants.js";
-import type { Shot } from "./model.js";
+import type { CoreOptions, Shot } from "./model.js";
 import { nextFrame, sleep } from "./utils.js";
 import { captureModel } from "./snapshot.js";
 import { detectEnv } from "./env.js";
@@ -24,9 +24,13 @@ export class App {
   tour: any;
   tourAcc: any;
   tourV: any;
+  options: CoreOptions;
+  startScroll: number;
   unbinds: any;
   view: any;
-  constructor() {
+  constructor(options: CoreOptions = {}) {
+    this.options = options;
+    this.startScroll = 0;
     this.dead = false;
     this.t0 = performance.now();
     this.tour = false;
@@ -57,11 +61,17 @@ export class App {
 
   async run() {
     this.env = detectEnv();
+    this.startScroll = window.scrollY;
     const shotP = this.loadShot();
     this.view = new View(this.env);
     this.engine = new Engine(this.view);
     this.engine.onStart = () => this.view.intro.classList.add("gone");
     this.engine.onComplete = () => this.onComplete();
+    if (this.options.speed) this.engine.speed = this.options.speed;
+    if (this.options.autoScroll) {
+      this.tour = true;
+      this.applyTourUi(true);
+    }
     this.bind();
     this.last = performance.now();
     this.raf = requestAnimationFrame((t) => this.frame(t));
@@ -189,10 +199,7 @@ export class App {
       else if (a === "live") stop(true);
       else if (a === "replay") restart();
       else if (a === "tour") {
-        this.tour = !this.tour;
-        b.classList.toggle("on", this.tour);
-        b.textContent = this.tour ? "Touring" : "Tour";
-        if (this.tour) this.engine.start();
+        this.setTour(!this.tour);
       } else if (a === "speed") {
         this.speedIx = (this.speedIx + 1) % this.speeds.length;
         this.engine.speed = this.speeds[this.speedIx];
@@ -272,6 +279,19 @@ export class App {
     }
   }
 
+  setTour(on: boolean): void {
+    this.tour = on;
+    this.applyTourUi(on);
+    if (on) this.engine?.start();
+  }
+
+  private applyTourUi(on: boolean): void {
+    const button = this.view?.root.querySelector('[data-a="tour"]') as HTMLButtonElement | null;
+    if (!button) return;
+    button.classList.toggle("on", on);
+    button.textContent = on ? "Touring" : "Tour";
+  }
+
   onComplete() {
     this.complete = true;
     const E = this.engine;
@@ -286,6 +306,10 @@ export class App {
     v.root.querySelector('[data-a="tour"]').hidden = true;
     v.root.querySelector('[data-a="speed"]').hidden = true;
     this.tour = false;
+    if (this.options.autoScroll && Math.abs(window.scrollY - this.startScroll) > 4) {
+      window.scrollTo({ top: this.startScroll, behavior: "smooth" });
+    }
+    this.options.onComplete?.();
   }
 
   destroy(reveal: any) {
@@ -342,6 +366,7 @@ let lastShot: Shot | null = null;
 function restart(): void {
   if (app) {
     const a = app;
+    const options = a.options;
     app = null;
     a.dead = true;
     cancelAnimationFrame(a.raf);
@@ -349,13 +374,15 @@ function restart(): void {
     a.view.host.remove();
     // rebuild from where the first run started so screenshot crops line up again
     if (lastShot?.at) a.env.scrollTo(lastShot.at.sy, lastShot.at.sx);
+    start(options);
+    return;
   }
   start();
 }
 
-export function start(): void {
+export function start(options: CoreOptions = {}): void {
   if (app) return;
-  app = new App();
+  app = new App(options);
   app.run().catch((err) => console.error("[swarm-rebuild]", err));
 }
 

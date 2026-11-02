@@ -10,8 +10,9 @@
 [![Bundle](https://img.shields.io/badge/bundle-33%20kB%20gzip-0D99FF)](dist)
 [![Dependencies](https://img.shields.io/badge/runtime%20deps-0-0ACF83)](#)
 [![License](https://img.shields.io/badge/license-MIT-F24822)](LICENSE)
+[![CI](https://github.com/MaximeBoulle/Swarm-Rebuild/actions/workflows/ci.yml/badge.svg)](https://github.com/MaximeBoulle/Swarm-Rebuild/actions/workflows/ci.yml)
 
-[Quick start](#quick-start) · [How it works](#how-it-works) · [API](#api) · [Demo](demo)
+[Live demo](https://maximeboulle.github.io/Swarm-Rebuild/demo/) · [Quick start](#quick-start) · [How it works](#how-it-works) · [API](#api)
 
 </div>
 
@@ -191,8 +192,12 @@ src/
 demo/
   index.html          marketing fixture
   complex.html        stress fixture: sticky header, cards, table, form
+scripts/
+  api-report.mjs      public API report, built on the TypeScript 7 native API
 media/
   banner.svg  demo.gif  demo.mp4  poster.png
+.github/
+  workflows/ci.yml  workflows/release.yml  workflows/pages.yml
 ```
 
 ---
@@ -203,11 +208,13 @@ Requires **Node 26+** and **npm 11+**.
 
 ```bash
 npm install
-npm run dev        # tsup in watch mode
-npm run typecheck  # tsc --noEmit
-npm run build      # tsup + declaration emit
-npm run demo       # vite demo
-npm run format     # prettier
+npm run dev             # tsup in watch mode
+npm run typecheck       # tsc --noEmit
+npm run build           # tsup + declaration emit
+npm run api-report      # regenerate api-report.md
+npm run api-report:check # fail if the public API drifted
+npm run demo            # vite demo
+npm run format          # prettier
 ```
 
 | Output | |
@@ -227,6 +234,26 @@ TypeScript 7 yet.
 
 So the pipeline splits the work: `tsc` emits declarations natively, esbuild
 (through tsup) bundles the JavaScript. No compiler API involved.
+
+### Public API report
+
+`api-report.md` is generated from `src/index.ts` with the new TypeScript 7
+native API (`typescript/unstable/sync`): open the project, take a snapshot,
+read the entry program through the checker and print signatures with the
+emitter. CI fails when the committed report drifts, so any public API change
+shows up in the diff.
+
+### Releases
+
+Push a tag and the release workflow publishes to npm with provenance:
+
+```bash
+npm version minor
+git push --follow-tags
+```
+
+Requires a `NPM_TOKEN` repository secret (automation token with publish
+rights). CI, Pages and Dependabot are already wired.
 
 ---
 

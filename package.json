@@ -36,7 +36,10 @@
     "typecheck": "tsc --noEmit",
     "demo": "vite demo --open",
     "format": "prettier --write \"src/**/*.ts\" \"demo/**/*.{html,js}\"",
-    "format:check": "prettier --check \"src/**/*.ts\""
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "api-report": "node scripts/api-report.mjs",
+    "api-report:check": "node scripts/api-report.mjs --check",
+    "prepublishOnly": "npm run build && npm run api-report:check"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
@@ -54,5 +57,9 @@
   "bugs": {
     "url": "https://github.com/MaximeBoulle/Swarm-Rebuild/issues"
   },
-  "author": "Maxime Boulle"
+  "author": "Maxime Boulle",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }
