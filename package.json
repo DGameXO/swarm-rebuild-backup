@@ -51,7 +51,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/MaximeBoulle/Swarm-Rebuild.git"
+    "url": "git+https://github.com/MaximeBoulle/Swarm-Rebuild.git"
   },
   "homepage": "https://github.com/MaximeBoulle/Swarm-Rebuild#readme",
   "bugs": {

@@ -252,8 +252,26 @@ npm version minor
 git push --follow-tags
 ```
 
-Requires a `NPM_TOKEN` repository secret (automation token with publish
-rights). CI, Pages and Dependabot are already wired.
+#### First publish
+
+npm only exposes the trusted-publisher settings once the package exists, so the
+very first version is published by hand:
+
+```bash
+npm login
+npm publish --access public
+```
+
+Then open **npmjs.com → Packages → swarm-rebuild → Settings → Trusted
+publishing**, add a GitHub Actions publisher and tick **Allow npm publish**
+(configurations created after September 2026 default to `npm stage publish`
+only). The configuration expires if it is not used for a successful publish
+within two days, so tag a release right after saving it.
+
+From that point on, no token is needed: `release.yml` uses OIDC, and provenance
+is generated automatically.
+
+CI, Pages and Dependabot are already wired.
 
 ---
 
