@@ -1,6 +1,6 @@
 import { ATOMIC } from "./constants.js";
 import { boxyStyle } from "./clone.js";
-import type { Item } from "./model.js";
+import type { TextItem } from "./model.js";
 
 // -------------------------------------------------------------- text reveal
 
@@ -17,14 +17,14 @@ interface TextUnit {
   on?: boolean;
 }
 
-interface RevealItem extends Item {
+type RevealItem = TextItem & {
   live: HTMLElement;
   units: TextUnit[];
   seq: string;
   total: number;
   shown: number;
   rshown: number;
-}
+};
 
 type BoxElement = HTMLElement & { __on?: boolean };
 
@@ -37,7 +37,7 @@ function wsOf(n: Node, root: Node): string {
   return "normal";
 }
 
-export function prepText(item: Item): void {
+export function prepText(item: TextItem): void {
   const it = item as RevealItem;
   const live = it.full!.cloneNode(true) as HTMLElement;
   const units: TextUnit[] = [];
@@ -98,7 +98,7 @@ export function prepText(item: Item): void {
   it.rshown = 0;
 }
 
-export function reveal(item: Item, n: number): Node | null {
+export function reveal(item: TextItem, n: number): Node | null {
   const it = item as RevealItem;
   let left = n;
   let last: Node | null = null;

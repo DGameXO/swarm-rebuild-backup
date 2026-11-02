@@ -23,6 +23,7 @@ import type {
   Shot,
   Task,
   TaskSpec,
+  TextItem,
 } from "./model.js";
 
 interface CaptureCtx {
@@ -354,7 +355,7 @@ export function captureModel(env: Env, shot: Shot | null): Model {
       clip: null,
       parentBox: ctx.boxItem,
       sig: pts.length + stroke,
-    });
+    } as NewItem);
   }
 
   function emitBox(
@@ -455,7 +456,7 @@ export function captureModel(env: Env, shot: Shot | null): Model {
       clip: clipFor(r, ctx.clip, ctx.layer),
       parentBox: ctx.boxItem,
       sig: cssText,
-    });
+    } as NewItem);
   }
 
   // Decorative ::before/::after on containers (overlays, glows, standalone icons).
@@ -716,7 +717,7 @@ export function captureModel(env: Env, shot: Shot | null): Model {
       clip: clipFor(r, ctx.clip, ctx.layer),
       parentBox: ctx.boxItem,
       sig: m.sig,
-    });
+    } as NewItem);
   }
 
   function emitForm(
@@ -757,7 +758,7 @@ export function captureModel(env: Env, shot: Shot | null): Model {
         clip: null,
         parentBox: ctx.boxItem,
         sig: type + on,
-      });
+      } as NewItem);
       return;
     }
     const boxIt = emitBox(el, cs, r, ctx, key, false);
@@ -1181,25 +1182,25 @@ export function captureModel(env: Env, shot: Shot | null): Model {
   // -------------------------------------------------- guides & snapping
   const guides: Group[] = [];
   const texts = items.filter(
-    (it) =>
-      it.kind === "text" && it.task && it.layer === "world" && (it.fs ?? 0) >= 13 && it.tb!.w > 30,
+    (it): it is TextItem =>
+      it.kind === "text" && !!it.task && it.layer === "world" && it.fs >= 13 && it.tb.w > 30,
   );
   const BAND = 900;
-  const bands = new Map<any, any>();
+  const bands = new Map<number, TextItem[]>();
   for (const it of texts) {
     const k = Math.floor(it.tb!.y / BAND);
     if (!bands.has(k)) bands.set(k, []);
-    bands.get(k).push(it);
+    bands.get(k)!.push(it);
   }
   for (const [, list] of [...bands.entries()].sort((a, b) => a[0] - b[0])) {
     if (guides.length >= 16) break;
-    const byX = new Map<number, Item[]>();
+    const byX = new Map<number, TextItem[]>();
     for (const it of list) {
       const x = Math.round(it.tb!.x);
       if (!byX.has(x)) byX.set(x, []);
       byX.get(x)!.push(it);
     }
-    let best: [number, Item[]] | null = null;
+    let best: [number, TextItem[]] | null = null;
     for (const [x, l] of byX)
       if (l.length >= 3 && (!best || l.length > best[1]!.length)) best = [x, l];
     if (best) {
@@ -1227,13 +1228,13 @@ export function captureModel(env: Env, shot: Shot | null): Model {
         g.deps!.push(m.task!);
       }
     }
-    const byY = new Map<number, Item[]>();
+    const byY = new Map<number, TextItem[]>();
     for (const it of list) {
       const y = Math.round(it.tb!.y);
       if (!byY.has(y)) byY.set(y, []);
       byY.get(y)!.push(it);
     }
-    let row: [number, Item[]] | null = null;
+    let row: [number, TextItem[]] | null = null;
     for (const [y, l] of byY)
       if (l.length >= 3 && (!row || l.length > row[1]!.length)) row = [y, l];
     if (row) {

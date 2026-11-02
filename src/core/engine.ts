@@ -9,6 +9,10 @@ interface MoveOptions {
 
 import type {
   Agent,
+  ImageItem,
+  LineItem,
+  RectItem,
+  TextItem,
   Geometry,
   Group,
   Item,
@@ -33,7 +37,7 @@ import type { View } from "./view.js";
 export class Engine {
   cursors!: Agent[];
   doneCount!: number;
-  editLines!: Set<Item>;
+  editLines!: Set<LineItem>;
   endTime!: number;
   flocking!: boolean;
   frontier!: number;
@@ -211,7 +215,7 @@ export class Engine {
     };
   }
 
-  underline(it: Item, b: Rect) {
+  underline(it: TextItem, b: Rect) {
     return {
       x: b.x,
       y: b.y + (it.lh! * 0.5 + it.fs! * 0.42) * it.scale,
@@ -618,7 +622,7 @@ export class Engine {
     yield* this.wait(0.07);
   }
 
-  *type(it: Item): Generator<void, void, number> {
+  *type(it: TextItem): Generator<void, void, number> {
     const N = it.total!;
     const k = clamp(70 / Math.max(1, N), 0.06, 1);
     let budget = 0;
@@ -676,28 +680,28 @@ export class Engine {
     const s = t.spec;
     switch (s.type) {
       case "rect":
-        return this.drawBox(c, s.it!, false);
+        return this.drawBox(c, s.it as RectItem, false);
       case "image":
-        return this.drawBox(c, s.it!, true);
+        return this.drawBox(c, s.it as ImageItem, true);
       case "line":
-        return this.drawLine(c, s.it!);
+        return this.drawLine(c, s.it as LineItem);
       case "text":
-        return this.drawText(c, s.it!, s.snap || null, !!s.grow);
+        return this.drawText(c, s.it as TextItem, s.snap || null, !!s.grow);
       case "guide":
         return this.dragGuide(c, s.g!);
       case "dup":
         return this.duplicate(c, s.g!, s.k as number);
       case "edit":
-        return this.editText(c, s.it!);
+        return this.editText(c, s.it as TextItem);
       case "restyle":
       case "swap":
-        return this.restyle(c, s.it!);
+        return this.restyle(c, s.it as RectItem | ImageItem);
     }
     return this.wait(0.1);
   }
 
   // Where a drag should end so a huge box doesn't drag the cursor off-screen.
-  dragEnd(c: Agent, it: Item): Point {
+  dragEnd(c: Agent, it: RectItem | ImageItem): Point {
     const vp = this.vp;
     const screen = c.sticky;
     const right = screen ? vp.ox + vp.vw : vp.sx + vp.vw;
@@ -708,12 +712,12 @@ export class Engine {
     return { x: Math.min(x, it.x + it.w), y: Math.min(y, it.y + it.h) };
   }
 
-  *drawBox(c: Agent, it: Item, isImg: boolean): Generator<void, void, number> {
+  *drawBox(c: Agent, it: RectItem | ImageItem, isImg: boolean): Generator<void, void, number> {
     c.shape = "cross";
     yield* this.moveTo(c, { x: it.x, y: it.y });
     c.press = 1;
     it.vis = true;
-    if (it.big) it.styled = true;
+    if (it.kind === "rect" && it.big) it.styled = true;
     it.draw = { w: 0, h: 0 };
     bump(it);
     c.ov = () => [this.selection(it)];
@@ -750,7 +754,7 @@ export class Engine {
     bump(it);
   }
 
-  *drawLine(c: Agent, it: Item): Generator<void, void, number> {
+  *drawLine(c: Agent, it: LineItem): Generator<void, void, number> {
     c.shape = "pen-add";
     yield* this.moveTo(c, it.pts![0]!);
     yield* this.click(c);
@@ -778,7 +782,12 @@ export class Engine {
     bump(it);
   }
 
-  *drawText(c: Agent, it: Item, guide: Group | null, grow: boolean): Generator<void, void, number> {
+  *drawText(
+    c: Agent,
+    it: TextItem,
+    guide: Group | null,
+    grow: boolean,
+  ): Generator<void, void, number> {
     if (guide) {
       if (guide.axis === "x") {
         it.dx = rand(28, 64);
@@ -1053,7 +1062,7 @@ export class Engine {
     return null;
   }
 
-  *editText(c: Agent, it: Item): Generator<void, void, number> {
+  *editText(c: Agent, it: TextItem): Generator<void, void, number> {
     c.shape = "arrow";
     const b = this.bounds(it);
     yield* this.moveTo(c, {
@@ -1085,7 +1094,7 @@ export class Engine {
     bump(it);
   }
 
-  *restyle(c: Agent, it: Item): Generator<void, void, number> {
+  *restyle(c: Agent, it: RectItem | ImageItem): Generator<void, void, number> {
     c.shape = "arrow";
     const b = this.bounds(it);
     yield* this.moveTo(c, {

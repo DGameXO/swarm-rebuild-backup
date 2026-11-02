@@ -3,7 +3,19 @@ import { HOT, cursorSVG, IMG_ICON } from "./cursors.js";
 import { clamp, f1 } from "./utils.js";
 import { prepText, reveal } from "./text.js";
 import { STYLE } from "./style.js";
-import type { CursorNode, Env, Geometry, Item, ItemNode, Layer, Model, Point } from "./model.js";
+import type {
+  CursorNode,
+  Env,
+  Geometry,
+  ImageItem,
+  Item,
+  ItemNode,
+  Layer,
+  Model,
+  Point,
+  RectItem,
+  TextItem,
+} from "./model.js";
 import type { Engine } from "./engine.js";
 // ------------------------------------------------------------------- view
 
@@ -67,14 +79,14 @@ export class View {
 <button data-a="replay" hidden title="Wipe and rebuild again">Replay</button>
 <button data-a="close" class="x" title="Exit (Esc)">✕</button>
 </div>`;
-    const $ = (s: string) => root.querySelector(s) as HTMLElement;
+    const $ = <T extends Element = HTMLElement>(s: string): T => root.querySelector(s) as T;
     this.bg = $(".bg");
     this.under = $(".under");
     this.over = $(".over");
     this.port = $(".port");
     this.world = $(".world");
     this.intro = $(".intro");
-    this.ov = $(".ov") as unknown as SVGSVGElement;
+    this.ov = $<SVGSVGElement>(".ov");
     this.badges = $(".badges");
     this.cursorsEl = $(".cursors");
     this.rulers = $(".rulers");
@@ -226,10 +238,10 @@ export class View {
 
   renderItem(it: Item) {
     const tw = it.twinOf;
-    if (tw && it._tv !== tw.v) {
+    if (tw && tw.kind === "text" && it.kind === "text" && it._tv !== tw.v) {
       it._tv = tw.v;
       it.vis = tw.vis;
-      it.shown = tw.total ? Math.round((tw.shown! / tw.total) * it.total!) : it.total;
+      it.shown = tw.total ? Math.round(((tw.shown ?? 0) / tw.total) * it.total!) : it.total;
       it.dx = tw.dx;
       it.dy = tw.dy;
       it.scale = tw.scale;
@@ -263,8 +275,8 @@ export class View {
       if (it.dash) path.setAttribute("stroke-dasharray", it.dash);
       return;
     }
-    const w = it.draw ? it.draw.w : it.w;
-    const h = it.draw ? it.draw.h : it.h;
+    const w = it.kind === "text" ? it.w : it.draw ? it.draw.w : it.w;
+    const h = it.kind === "text" ? it.h : it.draw ? it.draw.h : it.h;
     let tf = `translate(${it.x + it.dx}px,${it.y + it.dy}px)`;
     if (it.scale !== 1) tf += ` scale(${it.scale})`;
     n.style.transform = tf;
@@ -277,7 +289,7 @@ export class View {
         : "";
 
     if (it.kind === "rect") {
-      const css = it.mode === "master" ? it.copyOf!.css! : it.css;
+      const css = it.mode === "master" ? (it.copyOf as RectItem).css : it.css;
       if (n._css !== css) {
         (n.firstChild as Element).setAttribute("style", css ?? "");
         n._css = css;
@@ -285,11 +297,11 @@ export class View {
       n.classList.toggle("st", !!it.styled);
       n.style.borderRadius = it.styled
         ? it.mode === "master"
-          ? (it.copyOf!.radius ?? "0px")
-          : (it.radius ?? "0px")
+          ? (it.copyOf as RectItem).radius
+          : it.radius
         : "0px";
     } else if (it.kind === "image") {
-      const src = it.mode === "master" ? it.copyOf! : it;
+      const src: ImageItem = it.mode === "master" ? (it.copyOf as ImageItem) : it;
       if (n._src !== src) {
         const old = n.querySelector(".md");
         const m = (src.media as Element).cloneNode(true) as Element;
@@ -316,7 +328,7 @@ export class View {
     } else if (it.kind === "text") {
       let content: HTMLElement;
       if (it.mode === "master") {
-        if (!it._mv) it._mv = it.copyOf!.full!.cloneNode(true) as HTMLElement;
+        if (!it._mv) it._mv = (it.copyOf as TextItem).full.cloneNode(true) as HTMLElement;
         content = it._mv;
       } else content = it.live!;
       if (n.firstChild !== content) {

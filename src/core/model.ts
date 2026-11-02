@@ -100,7 +100,7 @@ export interface DrawState {
   h: number;
 }
 
-export interface Item {
+export interface BaseItem {
   // ---- identity, set by the snapshotter
   id: number;
   kind: ItemKind;
@@ -129,44 +129,6 @@ export interface Item {
   /** Signature used to detect duplicate siblings. */
   sig: string;
 
-  // ---- rect
-  css?: string;
-  radius?: string;
-  big?: boolean;
-  styled?: boolean;
-  draw?: DrawState | null;
-
-  // ---- text
-  tb?: Rect;
-  full?: HTMLElement;
-  fs?: number;
-  lh?: number;
-  align?: string;
-  text?: string;
-  live?: HTMLElement;
-  units?: TextUnit[];
-  seq?: string;
-  total?: number;
-  shown?: number;
-  rshown?: number;
-
-  // ---- image
-  media?: Element;
-  frame?: string;
-  shadow?: string;
-  bg?: string;
-  src?: string;
-
-  // ---- line
-  pts?: Point[];
-  stroke?: string;
-  sw?: number;
-  dash?: string | null;
-  placed?: number;
-  shut?: boolean;
-  edit?: boolean;
-  owner?: Agent | null;
-
   // ---- runtime, attached while the build progresses
   task?: Task | null;
   final?: Task[];
@@ -189,6 +151,60 @@ export interface Item {
   _mv?: HTMLElement | null;
   _tv?: number;
 }
+
+/** A filled or bordered box. */
+export interface RectItem extends BaseItem {
+  kind: "rect";
+  css: string;
+  radius: string;
+  big: boolean;
+  styled: boolean;
+  draw: DrawState | null;
+}
+
+/** A block of text, revealed one character at a time. */
+export interface TextItem extends BaseItem {
+  kind: "text";
+  tb: Rect;
+  full: HTMLElement;
+  fs: number;
+  lh: number;
+  align: string;
+  text: string;
+  live?: HTMLElement;
+  units?: TextUnit[];
+  seq?: string;
+  total?: number;
+  shown?: number;
+  rshown?: number;
+}
+
+/** An image, SVG, video poster, canvas snapshot or form control. */
+export interface ImageItem extends BaseItem {
+  kind: "image";
+  media: Element;
+  frame: string;
+  radius: string;
+  shadow: string;
+  bg: string;
+  styled: boolean;
+  draw: DrawState | null;
+}
+
+/** A pen-tool line: a single border side or an `<hr>`. */
+export interface LineItem extends BaseItem {
+  kind: "line";
+  pts: Point[];
+  stroke: string;
+  sw: number;
+  dash: string | null;
+  placed: number;
+  shut: boolean;
+  edit: boolean;
+  owner: Agent | null;
+}
+
+export type Item = RectItem | TextItem | ImageItem | LineItem;
 
 export type NewItem = Omit<Item, "id" | "v" | "rv" | "vis" | "dx" | "dy" | "scale" | "mode">;
 
