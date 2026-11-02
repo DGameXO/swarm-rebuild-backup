@@ -1,44 +1,72 @@
 import { COLORS, FLOCK_AGENTS, INTRO_AGENTS, MAX_AGENTS, MIN_AGENTS, NAMES } from "./constants.js";
 import { bump, clamp, easeInOut, easeOut, rand } from "./utils.js";
+interface MoveOptions {
+  speed?: number;
+  bend?: number;
+  drag?: boolean;
+  onStep?: () => void;
+}
+
+import type {
+  Agent,
+  Geometry,
+  Group,
+  Item,
+  Model,
+  Overlay,
+  OverlayBox,
+  OverlayMeasure,
+  Point,
+  Rect,
+  Task,
+} from "./model.js";
+interface MoveOptions {
+  speed?: number;
+  bend?: number;
+  drag?: boolean;
+  onStep?: () => void;
+}
+
+import type { View } from "./view.js";
 // ----------------------------------------------------------------- engine
 
 export class Engine {
-  cursors: any;
-  doneCount: any;
-  editLines: any;
-  endTime: any;
-  flocking: any;
-  frontier: any;
-  groups: any;
-  guideDeps: any;
-  guides: any;
-  items: any;
-  lastScroll: any;
-  lastT: any;
-  mouse: any;
-  nextId: any;
-  onComplete: any;
-  onStart: any;
-  ready: any;
-  releasing: any;
-  retired: any;
-  rulers: any;
-  spawnCooldown: any;
-  speed: any;
-  startTime: any;
-  started: any;
-  tasks: any;
-  tempo: any;
-  time: any;
-  tv: any;
-  vel: any;
-  view: any;
-  vp: any;
-  waitCount: any;
-  constructor(view: any) {
+  cursors!: Agent[];
+  doneCount!: number;
+  editLines!: Set<Item>;
+  endTime!: number;
+  flocking!: boolean;
+  frontier!: number;
+  groups!: Group[];
+  guideDeps!: Map<Group, Task[]>;
+  guides!: Group[];
+  items!: Item[];
+  lastScroll!: number | null;
+  lastT!: { x: number; y: number } | null;
+  mouse!: { x: number; y: number } | null;
+  nextId!: number;
+  onComplete!: (() => void) | null;
+  onStart!: (() => void) | null;
+  ready!: boolean;
+  releasing!: boolean;
+  retired!: number;
+  rulers!: { want: number; t: number; lastNeed: number };
+  spawnCooldown!: number;
+  speed!: number;
+  startTime!: number;
+  started!: boolean;
+  tasks!: Task[];
+  tempo!: number;
+  time!: number;
+  tv!: { x: number; y: number };
+  vel!: number;
+  view!: View;
+  vp!: Geometry;
+  waitCount!: number;
+  constructor(view: View) {
     this.view = view;
     this.vp = view.vp;
-    this.items = null;
+    this.items = [];
     this.tasks = [];
     this.groups = [];
     this.guides = [];
@@ -75,17 +103,17 @@ export class Engine {
     }
   }
 
-  setModel(m: any) {
+  setModel(m: Model) {
     this.items = m.items;
     this.tasks = m.tasks;
     this.groups = m.groups;
     this.guides = m.guides;
-    this.guideDeps = new Map(m.guides.map((g: any) => [g, g.deps || []]));
+    this.guideDeps = new Map(m.guides.map((g) => [g, g.deps || []]));
     this.waitCount = m.tasks.length;
     this.ready = true;
   }
 
-  makeCursor(x: any, y: any, home = false) {
+  makeCursor(x: number, y: number, home = false): Agent {
     const id = this.nextId++;
     const fast = Math.random() < 0.25;
     return {
@@ -122,11 +150,11 @@ export class Engine {
   get viewBot() {
     return this.vp.sy + this.vp.vh;
   }
-  fromViewport(x: any, y: any) {
+  fromViewport(x: number, y: number): { x: number; y: number } {
     const vp = this.vp;
     return { x: x - vp.ox + vp.sx, y: y - vp.oy + vp.sy };
   }
-  taskY(t: any) {
+  taskY(t: Task): number {
     return t.layer === "world" ? t.y : this.viewTop + t.y;
   }
 
@@ -137,26 +165,28 @@ export class Engine {
     for (const c of this.cursors) {
       c.follow = false;
       c.gen = null;
-      c.angle = ((((c.angle + 180) % 360) + 360) % 360) - 180;
+      c.angle = (((((c.angle ?? 0) + 180) % 360) + 360) % 360) - 180;
     }
     if (this.onStart) this.onStart();
   }
 
-  bounds(it: any) {
+  bounds(it: Item): Rect {
     if (it.kind === "text") {
-      let h = it.tb.h;
+      const tb = it.tb!;
+      const lh = it.lh!;
+      let h = tb.h;
       if (it.editing && !it.selAll && it.total) {
-        const lines = Math.max(1, Math.round(it.tb.h / it.lh));
-        h = Math.min(it.tb.h, Math.max(it.lh, Math.ceil((it.shown / it.total) * lines) * it.lh));
+        const lines = Math.max(1, Math.round(tb.h / lh));
+        h = Math.min(tb.h, Math.max(lh, Math.ceil((it.shown! / it.total) * lines) * lh));
       }
       const s = it.scale;
       const ax =
         it.align === "center"
-          ? (it.tb.w * (1 - s)) / 2
+          ? (tb.w * (1 - s)) / 2
           : it.align === "right" || it.align === "end"
-            ? it.tb.w * (1 - s)
+            ? tb.w * (1 - s)
             : 0;
-      return { x: it.tb.x + it.dx + ax, y: it.tb.y + it.dy, w: it.tb.w * s, h: h * s };
+      return { x: tb.x + it.dx + ax, y: tb.y + it.dy, w: tb.w * s, h: h * s };
     }
     if (it.kind === "line") {
       return { x: it.x + it.dx, y: it.y + it.dy, w: it.w, h: it.h };
@@ -169,32 +199,32 @@ export class Engine {
     };
   }
 
-  unionBounds(list: any) {
-    const bs = list.map((it: any) => this.bounds(it));
-    const x = Math.min(...bs.map((b: any) => b.x));
-    const y = Math.min(...bs.map((b: any) => b.y));
+  unionBounds(list: Item[]): Rect {
+    const bs = list.map((it) => this.bounds(it));
+    const x = Math.min(...bs.map((b) => b.x));
+    const y = Math.min(...bs.map((b) => b.y));
     return {
       x,
       y,
-      w: Math.max(...bs.map((b: any) => b.x + b.w)) - x,
-      h: Math.max(...bs.map((b: any) => b.y + b.h)) - y,
+      w: Math.max(...bs.map((b) => b.x + b.w)) - x,
+      h: Math.max(...bs.map((b) => b.y + b.h)) - y,
     };
   }
 
-  underline(it: any, b: any) {
+  underline(it: Item, b: Rect) {
     return {
       x: b.x,
-      y: b.y + (it.lh * 0.5 + it.fs * 0.42) * it.scale,
-      w: Math.min(b.w, it.tb.w * it.scale),
+      y: b.y + (it.lh! * 0.5 + it.fs! * 0.42) * it.scale,
+      w: Math.min(b.w, it.tb!.w * it.scale),
       h: 0,
     };
   }
 
-  selection(it: any, extra?: any) {
+  selection(it: Item, extra?: Record<string, unknown>): OverlayBox {
     const b = this.bounds(it);
     return Object.assign(
       {
-        t: "box",
+        t: "box" as const,
         b,
         handles: true,
         badge: `${Math.round(b.w)} × ${Math.round(b.h)}`,
@@ -205,8 +235,8 @@ export class Engine {
     );
   }
 
-  available() {
-    const out: any[] = [];
+  available(): Task[] {
+    const out: Task[] = [];
     for (const t of this.tasks) {
       if (t.state !== "wait") continue;
       if (t.layer === "world" && t.gate > this.frontier) continue;
@@ -221,8 +251,8 @@ export class Engine {
     return out;
   }
 
-  pick(c: any, list: any) {
-    let best: any = null;
+  pick(c: Agent, list: Task[]) {
+    let best: Task | null = null;
     let bestS = Infinity;
     const top = this.viewTop - 40;
     const bot = this.viewBot;
@@ -251,7 +281,7 @@ export class Engine {
     return n;
   }
 
-  step(dt: any) {
+  step(dt: number): void {
     dt = Math.min(dt, 0.05);
     this.time += dt;
     const vp = (this.vp = this.view.vp);
@@ -281,12 +311,12 @@ export class Engine {
       if (
         !g.dragging &&
         g.op > 0 &&
-        this.time - g.shownAt > 7 &&
-        !deps.some((t: any) => t.state === "active")
+        this.time - (g.shownAt ?? 0) > 7 &&
+        !deps.some((t) => t.state === "active")
       )
         g.op = Math.max(0, g.op - dt * 1.2);
-      else if (!g.dragging && deps.every((t: any) => t.state === "done")) {
-        const last = Math.max(0, ...deps.map((t: any) => t.doneAt));
+      else if (!g.dragging && deps.every((t) => t.state === "done")) {
+        const last = Math.max(0, ...deps.map((t) => t.doneAt ?? 0));
         if (this.time - last > 1.2 && g.op > 0) g.op = Math.max(0, g.op - dt * 1.2);
       }
     }
@@ -300,7 +330,7 @@ export class Engine {
           c.ov = null;
           c.shape = "arrow";
         }
-      if (this.cursors.every((c: any) => c.follow)) {
+      if (this.cursors.every((c) => c.follow)) {
         this.flocking = true;
         this.endTime = this.time;
         if (this.onComplete) this.onComplete();
@@ -315,10 +345,10 @@ export class Engine {
       if (this.follow(dt, this.cursors, center, 0.7) && this.ready) this.start();
       return;
     }
-    if (this.cursors.some((c: any) => c.follow))
+    if (this.cursors.some((c) => c.follow))
       this.follow(
         dt,
-        this.cursors.filter((c: any) => c.follow),
+        this.cursors.filter((c) => c.follow),
       );
 
     this.spawnCooldown -= dt;
@@ -327,8 +357,8 @@ export class Engine {
       MIN_AGENTS,
       MAX_AGENTS,
     );
-    const active = this.cursors.filter((c: any) => !c.leaving).length;
-    const busy = this.cursors.filter((c: any) => c.task).length;
+    const active = this.cursors.filter((c) => !c.leaving).length;
+    const busy = this.cursors.filter((c) => c.task).length;
     if (active < want && avail.length > active - busy && this.spawnCooldown <= 0) {
       const left = Math.random() < 0.5;
       const p = this.fromViewport(
@@ -359,15 +389,15 @@ export class Engine {
 
     for (const c of [...this.cursors]) {
       if (c.follow) continue;
-      c.press = Math.max(0, c.press - dt * 6);
-      if (c.angle !== 0)
-        c.angle = Math.abs(c.angle) < 0.5 ? 0 : c.angle * (1 - Math.min(1, dt * 10));
+      c.press = Math.max(0, (c.press ?? 0) - dt * 6);
+      if ((c.angle ?? 0) !== 0)
+        c.angle = Math.abs(c.angle!) < 0.5 ? 0 : c.angle! * (1 - Math.min(1, dt * 10));
       if (!c.task) {
-        c.idleFor += dt;
+        c.idleFor = (c.idleFor ?? 0) + dt;
         if (
           !c.leaving &&
-          c.idleFor > 2.5 &&
-          this.cursors.filter((m: any) => !m.leaving).length > MIN_AGENTS &&
+          (c.idleFor ?? 0) > 2.5 &&
+          this.cursors.filter((m) => !m.leaving).length > MIN_AGENTS &&
           !c.home
         ) {
           c.leaving = true;
@@ -375,7 +405,7 @@ export class Engine {
         }
         if (!c.gen) c.gen = this.idle(c);
       }
-      if (c.gen.next(dt).done) {
+      if (c.gen!.next(dt).done) {
         if (c.task) {
           c.task.state = "done";
           c.task.doneAt = this.time;
@@ -408,7 +438,7 @@ export class Engine {
     );
   }
 
-  flock(dt: any) {
+  flock(dt: number): void {
     this.spawnCooldown -= dt;
     if (this.cursors.length < FLOCK_AGENTS && this.spawnCooldown <= 0 && !this.releasing) {
       const vp = this.vp;
@@ -433,7 +463,7 @@ export class Engine {
   }
 
   // Boids-ish orbit around a target, ported from the original.
-  follow(dt: any, list: any, target: any = null, scale = 1) {
+  follow(dt: number, list: Agent[], target: Point | null = null, scale = 1): boolean {
     const m = this.mouse ? this.fromViewport(this.mouse.x, this.mouse.y) : null;
     const o = target || this.flockTarget();
     const time = this.time;
@@ -445,7 +475,7 @@ export class Engine {
     this.lastT = m;
     const R = 135 * scale * (1 + 0.18 * Math.sin(time * 0.55));
     const swirl = Math.tanh(Math.cos(time * 0.11) * 3);
-    const want: any[] = [];
+    const want: number[][] = [];
     for (const c of list) {
       const vx = c.x - o.x;
       const vy = c.y - o.y;
@@ -453,14 +483,14 @@ export class Engine {
       const nx = vx / d;
       const ny = vy / d;
       const ang = Math.atan2(vy, vx);
-      const off = (c.orbit - 120) * 0.55 * scale;
+      const off = ((c.orbit ?? 0) - 120) * 0.55 * scale;
       const rr = R * (1 + 0.3 * Math.sin(3 * ang + time * 0.7)) + off;
-      const tang = 300 * (0.7 + c.spin * 0.2) * swirl;
+      const tang = 300 * (0.7 + (c.spin ?? 0) * 0.2) * swirl;
       const rad = clamp((rr - d) * 4, -2600, 1400);
       const far = Math.min(1, Math.max(0, (d - rr) / 600));
       want.push([
-        -ny * tang + nx * rad - ny * c.curl * 400 * far,
-        nx * tang + ny * rad + nx * c.curl * 400 * far,
+        -ny * tang + nx * rad - ny * (c.curl ?? 0) * 400 * far,
+        nx * tang + ny * rad + nx * (c.curl ?? 0) * 400 * far,
       ]);
     }
     for (let i = 0; i < list.length; i++) {
@@ -478,7 +508,7 @@ export class Engine {
         ay += q.vy * w;
         wsum += w;
       }
-      let [fx, fy] = want[i];
+      let [fx, fy] = want[i]!;
       if (wsum > 0) {
         fx = fx * 0.7 + (ax / wsum) * 0.3;
         fy = fy * 0.7 + (ay / wsum) * 0.3;
@@ -492,7 +522,7 @@ export class Engine {
       }
       let gx = (fx - c.vx) * 6;
       let gy = (fy - c.vy) * 6;
-      const maxF = c.force * (1.4 + Math.min(5, dist / 50));
+      const maxF = (c.force ?? 0) * (1.4 + Math.min(5, dist / 50));
       const G = Math.hypot(gx, gy);
       if (G > maxF) {
         gx *= maxF / G;
@@ -527,22 +557,27 @@ export class Engine {
     for (const c of list) {
       if (Math.hypot(c.vx, c.vy) < 30) continue;
       const d =
-        (((((Math.atan2(c.vy, c.vx) * 180) / Math.PI + 128 - c.angle + 540) % 360) + 360) % 360) -
+        (((((Math.atan2(c.vy, c.vx) * 180) / Math.PI + 128 - (c.angle ?? 0) + 540) % 360) + 360) %
+          360) -
         180;
-      c.angle += d * Math.min(1, dt * 8);
-      c.press = Math.max(0, c.press - dt * 6);
+      c.angle = (c.angle ?? 0) + d * Math.min(1, dt * 8);
+      c.press = Math.max(0, (c.press ?? 0) - dt * 6);
     }
     return touched;
   }
 
   // ------------------------------------------------------- primitives
 
-  *wait(t: any): Generator<any, any, any> {
+  *wait(t: number): Generator<void, void, number> {
     let n = 0;
     while (n < t) n += (yield) * this.tempo;
   }
 
-  *moveTo(c: any, target: any, o: any = {}): Generator<any, any, any> {
+  *moveTo(
+    c: Agent,
+    target: Point | (() => Point),
+    o: MoveOptions = {},
+  ): Generator<void, void, number> {
     const get = typeof target === "function" ? target : () => target;
     const x0 = c.x;
     const y0 = c.y;
@@ -578,20 +613,20 @@ export class Engine {
     if (o.onStep) o.onStep();
   }
 
-  *click(c: any): Generator<any, any, any> {
+  *click(c: Agent): Generator<void, void, number> {
     c.press = 1;
     yield* this.wait(0.07);
   }
 
-  *type(it: any): Generator<any, any, any> {
-    const N = it.total;
+  *type(it: Item): Generator<void, void, number> {
+    const N = it.total!;
     const k = clamp(70 / Math.max(1, N), 0.06, 1);
     let budget = 0;
-    let i = it.shown;
+    let i = it.shown!;
     while (i < N) {
       budget += (yield) * this.tempo;
       while (i < N && budget > 0) {
-        const ch = it.seq[i];
+        const ch = it.seq![i];
         let d = rand(0.012, 0.04);
         if (ch === " ") d += rand(0, 0.03);
         if (ch === "\n") d += 0.1;
@@ -604,7 +639,7 @@ export class Engine {
     }
   }
 
-  *idle(c: any): Generator<any, any, any> {
+  *idle(c: Agent): Generator<void, void, number> {
     for (;;) {
       const vp = this.vp;
       const top = this.viewTop;
@@ -622,7 +657,7 @@ export class Engine {
     }
   }
 
-  *leave(c: any): Generator<any, any, any> {
+  *leave(c: Agent): Generator<void, void, number> {
     const right = c.x > this.vp.sx + this.vp.vw / 2;
     yield* this.moveTo(
       c,
@@ -637,32 +672,32 @@ export class Engine {
     );
   }
 
-  run(c: any, t: any) {
+  run(c: Agent, t: Task): Generator<void, void, number> {
     const s = t.spec;
     switch (s.type) {
       case "rect":
-        return this.drawBox(c, s.it, false);
+        return this.drawBox(c, s.it!, false);
       case "image":
-        return this.drawBox(c, s.it, true);
+        return this.drawBox(c, s.it!, true);
       case "line":
-        return this.drawLine(c, s.it);
+        return this.drawLine(c, s.it!);
       case "text":
-        return this.drawText(c, s.it, s.snap || null, !!s.grow);
+        return this.drawText(c, s.it!, s.snap || null, !!s.grow);
       case "guide":
-        return this.dragGuide(c, s.g);
+        return this.dragGuide(c, s.g!);
       case "dup":
-        return this.duplicate(c, s.g, s.k);
+        return this.duplicate(c, s.g!, s.k as number);
       case "edit":
-        return this.editText(c, s.it);
+        return this.editText(c, s.it!);
       case "restyle":
       case "swap":
-        return this.restyle(c, s.it);
+        return this.restyle(c, s.it!);
     }
     return this.wait(0.1);
   }
 
   // Where a drag should end so a huge box doesn't drag the cursor off-screen.
-  dragEnd(c: any, it: any) {
+  dragEnd(c: Agent, it: Item): Point {
     const vp = this.vp;
     const screen = c.sticky;
     const right = screen ? vp.ox + vp.vw : vp.sx + vp.vw;
@@ -673,7 +708,7 @@ export class Engine {
     return { x: Math.min(x, it.x + it.w), y: Math.min(y, it.y + it.h) };
   }
 
-  *drawBox(c: any, it: any, isImg: any): Generator<any, any, any> {
+  *drawBox(c: Agent, it: Item, isImg: boolean): Generator<void, void, number> {
     c.shape = "cross";
     yield* this.moveTo(c, { x: it.x, y: it.y });
     c.press = 1;
@@ -715,9 +750,9 @@ export class Engine {
     bump(it);
   }
 
-  *drawLine(c: any, it: any): Generator<any, any, any> {
+  *drawLine(c: Agent, it: Item): Generator<void, void, number> {
     c.shape = "pen-add";
-    yield* this.moveTo(c, it.pts[0]);
+    yield* this.moveTo(c, it.pts![0]!);
     yield* this.click(c);
     it.vis = true;
     it.edit = true;
@@ -726,8 +761,8 @@ export class Engine {
     bump(it);
     this.editLines.add(it);
     c.shape = "pen";
-    for (let i = 1; i < it.pts.length; i++) {
-      yield* this.moveTo(c, it.pts[i], { bend: rand(-0.03, 0.03) });
+    for (let i = 1; i < it.pts!.length; i++) {
+      yield* this.moveTo(c, it.pts![i]!, { bend: rand(-0.03, 0.03) });
       yield* this.click(c);
       it.placed = i + 1;
       bump(it);
@@ -743,7 +778,7 @@ export class Engine {
     bump(it);
   }
 
-  *drawText(c: any, it: any, guide: any, grow: any): Generator<any, any, any> {
+  *drawText(c: Agent, it: Item, guide: Group | null, grow: boolean): Generator<void, void, number> {
     if (guide) {
       if (guide.axis === "x") {
         it.dx = rand(28, 64);
@@ -753,12 +788,12 @@ export class Engine {
         it.dy = rand(18, 34) * (Math.random() < 0.5 ? -1 : 1);
       }
     }
-    if (grow) it.scale = Math.min(1, 18 / it.fs);
+    if (grow) it.scale = Math.min(1, 18 / it.fs!);
     const b0 = this.bounds(it);
     c.shape = "cross";
     yield* this.moveTo(c, { x: b0.x, y: b0.y });
-    const lineH = Math.min(b0.h, it.lh * it.scale);
-    if (b0.w < 140 && it.tb.h < it.lh * 1.6) {
+    const lineH = Math.min(b0.h, it.lh! * it.scale);
+    if (b0.w < 140 && it.tb!.h < it.lh! * 1.6) {
       yield* this.click(c);
     } else {
       c.press = 1;
@@ -800,10 +835,10 @@ export class Engine {
     c.shape = "arrow";
     c.ov = () => [this.selection(it)];
     if (grow) {
-      const steps = [24, 32, 40, 48, 56, 64, 72, 88, 104].filter((s) => s < it.fs && s > 18);
-      for (const s of [...steps, it.fs]) {
+      const steps = [24, 32, 40, 48, 56, 64, 72, 88, 104].filter((s) => s < it.fs! && s > 18);
+      for (const s of [...steps, it.fs!]) {
         yield* this.wait(0.06);
-        it.scale = s / it.fs;
+        it.scale = s / it.fs!;
         bump(it);
       }
       it.scale = 1;
@@ -813,8 +848,8 @@ export class Engine {
     if (guide) {
       // give the guide a moment to land; never block a cursor on it
       let waited = 0;
-      while (guide.task.state !== "done" && waited < 1.6) waited += (yield) * this.tempo;
-      if (guide.task.state !== "done") guide = null;
+      while (guide.task!.state !== "done" && waited < 1.6) waited += (yield) * this.tempo;
+      if (guide.task!.state !== "done") guide = null;
     }
     if (guide) {
       const u = this.bounds(it);
@@ -869,7 +904,7 @@ export class Engine {
     bump(it);
   }
 
-  *dragGuide(c: any, g: any): Generator<any, any, any> {
+  *dragGuide(c: Agent, g: Group): Generator<void, void, number> {
     this.rulers.want++;
     try {
       const r = rand(-0.15, 0.15);
@@ -906,11 +941,11 @@ export class Engine {
     }
   }
 
-  *duplicate(c: any, g: any, k: any): Generator<any, any, any> {
-    const dst = g.dst[k];
-    let src = g.src;
-    const cand = [g.src, ...g.dst.filter((d: any) => d.task.state === "done")];
-    const dd = (a: any) => Math.hypot(a.box.x - dst.box.x, a.box.y - dst.box.y);
+  *duplicate(c: Agent, g: Group, k: number): Generator<void, void, number> {
+    const dst = g.dst![k]!;
+    let src = g.src!;
+    const cand = [g.src!, ...g.dst!.filter((d) => d.task.state === "done")];
+    const dd = (a: { box?: Rect }) => Math.hypot(a.box!.x - dst.box!.x, a.box!.y - dst.box!.y);
     for (const s of cand) if (dd(s) < dd(src)) src = s;
     const sb = this.unionBounds(src.items);
     c.shape = "arrow";
@@ -927,8 +962,8 @@ export class Engine {
     c.shape = "dup";
     yield* this.wait(0.12);
     c.press = 1;
-    const ox = src.box.x - dst.box.x;
-    const oy = src.box.y - dst.box.y;
+    const ox = src.box!.x - dst.box!.x;
+    const oy = src.box!.y - dst.box!.y;
     for (const it of dst.items) {
       it.vis = true;
       it.mode = "master";
@@ -939,18 +974,18 @@ export class Engine {
         it.draw = null;
       }
       if (it.kind === "line") {
-        it.placed = it.pts.length;
+        it.placed = it.pts!.length;
       }
       bump(it);
     }
     const m = { x: u.x - ox, y: u.y - oy };
     c.ov = () => {
       const cb = this.unionBounds(dst.items);
-      const h: any[] = [
+      const h: Overlay[] = [
         { t: "box", b: sb, color: "red" },
         { t: "box", b: cb, color: "red" },
       ];
-      const sp = this.spacing(sb as any, cb as any);
+      const sp = this.spacing(sb, cb);
       if (sp) h.push(sp);
       return h;
     };
@@ -989,7 +1024,7 @@ export class Engine {
       }
   }
 
-  spacing(a: any, b: any) {
+  spacing(a: Rect, b: Rect): OverlayMeasure | null {
     const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
     const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
     if (oy > 0) {
@@ -1018,12 +1053,12 @@ export class Engine {
     return null;
   }
 
-  *editText(c: any, it: any): Generator<any, any, any> {
+  *editText(c: Agent, it: Item): Generator<void, void, number> {
     c.shape = "arrow";
     const b = this.bounds(it);
     yield* this.moveTo(c, {
       x: b.x + Math.min(b.w * 0.5, 50) + rand(-5, 5),
-      y: b.y + Math.min(it.lh, b.h) * 0.55,
+      y: b.y + Math.min(it.lh!, b.h) * 0.55,
     });
     yield* this.click(c);
     yield* this.wait(0.08);
@@ -1050,7 +1085,7 @@ export class Engine {
     bump(it);
   }
 
-  *restyle(c: any, it: any): Generator<any, any, any> {
+  *restyle(c: Agent, it: Item): Generator<void, void, number> {
     c.shape = "arrow";
     const b = this.bounds(it);
     yield* this.moveTo(c, {

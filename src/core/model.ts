@@ -220,6 +220,25 @@ export interface TaskSpec {
   [extra: string]: unknown;
 }
 
+export interface OverlayBox {
+  t: "box";
+  b: Rect;
+  color?: string;
+  handles?: boolean;
+  badge?: string;
+  rulerLines?: boolean;
+  underline?: { x: number; y: number; w: number; h: number };
+}
+
+export interface OverlayMeasure {
+  t: "measure";
+  a: Point;
+  b: Point;
+  label: string;
+}
+
+export type Overlay = OverlayBox | OverlayMeasure;
+
 export interface Agent {
   id: number;
   name: string;
@@ -230,8 +249,15 @@ export interface Agent {
   vy: number;
   speed: number;
   task: Task | null;
-  el: HTMLElement;
   worked?: boolean;
+  home?: boolean;
+  idleFor?: number;
+  ov?: (() => Overlay[]) | null;
+  force?: number;
+  spin?: number;
+  curl?: number;
+  orbit?: number;
+  follow_?: boolean;
   leaving?: boolean;
   follow?: boolean;
   gen?: Generator<void, void, number> | null;
@@ -250,6 +276,7 @@ export interface Group {
   flash: number;
   dragging: boolean;
   vis: boolean;
+  shownAt?: number;
   task?: Task;
   deps?: Task[];
   master?: { start: number; end: number; box?: Rect };

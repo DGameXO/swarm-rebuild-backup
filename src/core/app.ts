@@ -1,5 +1,5 @@
 import { MIN_AGENTS } from "./constants.js";
-import type { CoreOptions, Shot } from "./model.js";
+import type { Agent, CoreOptions, Env, Model, Shot, Task } from "./model.js";
 import { nextFrame, sleep } from "./utils.js";
 import { captureModel } from "./snapshot.js";
 import { detectEnv } from "./env.js";
@@ -8,26 +8,26 @@ import { Engine } from "./engine.js";
 // -------------------------------------------------------------------- app
 
 export class App {
-  _dots: any;
-  _hudT: any;
-  complete: any;
-  dead: any;
-  engine: any;
-  env: any;
-  last: any;
-  model: any;
-  raf: any;
-  speedIx: any;
-  speeds: any;
-  t0: any;
-  timing: any;
-  tour: any;
-  tourAcc: any;
-  tourV: any;
+  _dots!: string | null;
+  _hudT!: number;
+  complete!: boolean;
+  dead!: boolean;
+  engine!: Engine;
+  env!: Env;
+  last!: number;
+  model!: Model | null;
+  raf!: number;
+  speedIx!: number;
+  speeds!: number[];
+  t0!: number;
+  timing!: Record<string, number>;
+  tour!: boolean;
+  tourAcc!: number;
+  tourV!: number;
   options: CoreOptions;
   startScroll: number;
-  unbinds: any;
-  view: any;
+  unbinds!: (() => void)[];
+  view!: View;
   constructor(options: CoreOptions = {}) {
     this.options = options;
     this.startScroll = 0;
@@ -55,7 +55,7 @@ export class App {
     } catch (_) {
       return null;
     }
-    const g = lastShot && lastShot.src === src ? lastShot.at : this.env.geom();
+    const g = lastShot && lastShot.src === src ? lastShot.at! : this.env.geom();
     return { img, sx: g.sx, sy: g.sy, scale: img.naturalWidth / innerWidth, valid: false };
   }
 
@@ -79,7 +79,7 @@ export class App {
     this.view.bg.classList.add("on");
     this.view.intro.classList.add("on");
     this.view.hud.classList.add("on");
-    const mark = (k: any) => (this.timing[k] = Math.round(performance.now() - this.t0));
+    const mark = (k: string) => (this.timing[k] = Math.round(performance.now() - this.t0));
     await sleep(520);
     await unhidePage();
     mark("blank");
@@ -102,7 +102,16 @@ export class App {
       model = captureModel(this.env, shot);
     } catch (err) {
       console.error("[swarm-rebuild] capture failed", err);
-      model = { items: [], tasks: [], groups: [], guides: [], docW: 0, docH: 0 };
+      model = {
+        items: [],
+        tasks: [],
+        groups: [],
+        guides: [],
+        docW: 0,
+        docH: 0,
+        backdrops: [],
+        portKey: null,
+      };
     }
     mark("capture");
     if (this.dead) return;
@@ -136,7 +145,12 @@ export class App {
   }
 
   bind() {
-    const on = (t: any, ev: any, fn: any, o?: any) => {
+    const on = (
+      t: EventTarget,
+      ev: string,
+      fn: EventListener,
+      o?: boolean | AddEventListenerOptions,
+    ) => {
       t.addEventListener(ev, fn, o);
       (this.unbinds || (this.unbinds = [])).push(() => t.removeEventListener(ev, fn, o));
     };
@@ -161,8 +175,9 @@ export class App {
     on(
       window,
       "pointermove",
-      (e: any) => {
-        this.engine.mouse = { x: e.clientX, y: e.clientY };
+      (e: Event) => {
+        const pointer = e as PointerEvent;
+        this.engine.mouse = { x: pointer.clientX, y: pointer.clientY };
       },
       { passive: true },
     );
@@ -172,9 +187,10 @@ export class App {
     on(
       window,
       "keydown",
-      (e: any) => {
-        if (e.key === "Escape") {
-          e.stopPropagation();
+      (e: Event) => {
+        const key = e as KeyboardEvent;
+        if (key.key === "Escape") {
+          key.stopPropagation();
           stop(false);
         }
       },
@@ -184,15 +200,20 @@ export class App {
       on(
         this.view.host,
         "wheel",
-        (e: any) => {
-          e.preventDefault();
-          this.env.scroller.scrollBy({ top: e.deltaY, left: e.deltaX, behavior: "instant" });
+        (e: Event) => {
+          const wheel = e as WheelEvent;
+          wheel.preventDefault();
+          this.env.scroller.scrollBy({
+            top: wheel.deltaY,
+            left: wheel.deltaX,
+            behavior: "instant",
+          });
         },
         { passive: false },
       );
     }
-    on(this.view.hud, "click", (e: any) => {
-      const b = e.target.closest("button");
+    on(this.view.hud, "click", (e: Event) => {
+      const b = (e.target as Element).closest("button");
       if (!b) return;
       const a = b.dataset.a;
       if (a === "close") stop(false);
@@ -208,7 +229,7 @@ export class App {
     });
   }
 
-  frame(now: any) {
+  frame(now: number): void {
     if (this.dead) return;
     const dt = Math.min(0.05, (now - this.last) / 1000);
     this.last = now;
@@ -226,7 +247,7 @@ export class App {
     this.raf = requestAnimationFrame((t) => this.frame(t));
   }
 
-  tourStep(dt: any) {
+  tourStep(dt: number): void {
     const E = this.engine;
     if (!E.started) return;
     const g = this.env.geom();
@@ -235,7 +256,7 @@ export class App {
       this.tourV = 0;
       return;
     }
-    const crew = Math.max(MIN_AGENTS, E.cursors.filter((c: any) => !c.leaving).length);
+    const crew = Math.max(MIN_AGENTS, E.cursors.filter((c: Agent) => !c.leaving).length);
     const backlog = E.backlog();
     const target = backlog <= Math.max(4, crew * 0.6) ? 230 : backlog <= crew * 1.5 ? 80 : 0;
     this.tourV += (target - this.tourV) * Math.min(1, dt * 2.5);
@@ -251,7 +272,7 @@ export class App {
     const E = this.engine;
     const v = this.view;
     if (!E.ready) return;
-    const workers = E.cursors.filter((c: any) => c.worked).length + E.retired;
+    const workers = E.cursors.filter((c: Agent) => c.worked).length + E.retired;
     const total = E.tasks.length;
     const done = E.doneCount;
     if (this.complete) return;
@@ -260,7 +281,7 @@ export class App {
     else {
       const pend = E.tasks.length - done;
       const below = E.tasks.some(
-        (t: any) => t.state === "wait" && t.layer === "world" && t.gate > E.frontier,
+        (t: Task) => t.state === "wait" && t.layer === "world" && t.gate > E.frontier,
       );
       v.status.innerHTML =
         `<b>${workers}</b> agents<span class="sep"></span><b>${done.toLocaleString()}</b> / ${total.toLocaleString()} layers` +
@@ -269,12 +290,12 @@ export class App {
           : "");
     }
     v.barFill.style.width = total ? `${(done / total) * 100}%` : "0%";
-    const busy = E.cursors.filter((c: any) => c.task).slice(-5);
-    const key = busy.map((c: any) => c.id).join(",");
+    const busy = E.cursors.filter((c: Agent) => c.task).slice(-5);
+    const key = busy.map((c: Agent) => c.id).join(",");
     if (key !== this._dots) {
       this._dots = key;
       v.dots.innerHTML = busy
-        .map((c: any) => `<i style="background:${c.color}" title="${c.name}">${c.name[0]}</i>`)
+        .map((c: Agent) => `<i style="background:${c.color}" title="${c.name}">${c.name[0]}</i>`)
         .join("");
     }
   }
@@ -296,15 +317,15 @@ export class App {
     this.complete = true;
     const E = this.engine;
     const v = this.view;
-    const workers = E.cursors.filter((c: any) => c.worked).length + E.retired;
+    const workers = E.cursors.filter((c: Agent) => c.worked).length + E.retired;
     const secs = (E.endTime - E.startTime).toFixed(1);
     v.status.innerHTML = `Rebuilt by <b>${workers}</b> agents in <b>${secs}s</b>`;
     v.barFill.style.width = "100%";
     v.dots.innerHTML = "";
-    v.root.querySelector('[data-a="live"]').hidden = false;
-    v.root.querySelector('[data-a="replay"]').hidden = false;
-    v.root.querySelector('[data-a="tour"]').hidden = true;
-    v.root.querySelector('[data-a="speed"]').hidden = true;
+    (v.root.querySelector('[data-a="live"]') as HTMLElement).hidden = false;
+    (v.root.querySelector('[data-a="replay"]') as HTMLElement).hidden = false;
+    (v.root.querySelector('[data-a="tour"]') as HTMLElement).hidden = true;
+    (v.root.querySelector('[data-a="speed"]') as HTMLElement).hidden = true;
     this.tour = false;
     if (this.options.autoScroll && Math.abs(window.scrollY - this.startScroll) > 4) {
       window.scrollTo({ top: this.startScroll, behavior: "smooth" });
@@ -312,7 +333,7 @@ export class App {
     this.options.onComplete?.();
   }
 
-  destroy(reveal: any) {
+  destroy(reveal: boolean): void {
     unhidePage();
     const finish = () => {
       this.dead = true;
