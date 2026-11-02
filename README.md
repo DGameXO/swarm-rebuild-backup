@@ -23,7 +23,9 @@
 <p align="center">
   <a href="media/demo.mp4"><b>▶ Watch the full-quality video</b></a>
   &nbsp;·&nbsp;
-  <a href="demo/complex.html">Run the stress fixture locally</a>
+  <a href="demo/showcase.html">Open the showcase</a>
+  &nbsp;·&nbsp;
+  <a href="demo/complex.html">Stress fixture</a>
 </p>
 
 ---
@@ -192,7 +194,8 @@ src/
     utils.ts          easing, colour helpers
     style.ts          injected stylesheet
 demo/
-  index.html          marketing fixture
+  index.html          library landing page, with live controls
+  showcase.html       editorial studio site: photos, serif type, full layout
   complex.html        stress fixture: sticky header, cards, table, form
 scripts/
   api-report.mjs      public API report, built on the TypeScript 7 native API

@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier Nord — architecture & interiors</title>
+<meta name="description" content="Atelier Nord is an architecture studio working on houses, galleries and public rooms.">
+<style>
+  :root {
+    --paper: #f2efe8;
+    --paper-2: #e8e3d8;
+    --ink: #16130f;
+    --muted: #6b6459;
+    --line: #d5cec1;
+    --accent: #b4441f;
+    --accent-soft: #e9d8cc;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  img { display: block; max-width: 100%; }
+  a { color: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+
+  /* ---------- top bar ---------- */
+  .bar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar .wrap { display: flex; align-items: center; gap: 32px; height: 70px; }
+  .wordmark { font-family: var(--serif); font-size: 21px; letter-spacing: -.01em; }
+  .wordmark span { color: var(--accent); }
+  .bar nav { display: flex; gap: 26px; margin-left: auto; font-size: 14px; color: var(--muted); }
+  .bar nav a { text-decoration: none; }
+  .bar nav a:hover { color: var(--ink); }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; border-radius: 999px;
+    background: var(--ink); color: var(--paper);
+    font-size: 13px; font-weight: 600; text-decoration: none;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #6ee7a8; display: inline-block; }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 72px 0 0; }
+  .hero-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 56px; align-items: end; }
+  .kicker {
+    font: 600 11px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 26px;
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 400;
+    font-size: clamp(46px, 6.4vw, 82px); line-height: .98; letter-spacing: -.035em;
+    margin: 0 0 28px;
+  }
+  h1 em { font-style: italic; color: var(--accent); }
+  .lede { font-size: 18px; color: var(--muted); max-width: 46ch; margin: 0 0 34px; }
+  .hero-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .link {
+    font-size: 14px; font-weight: 600; text-decoration: none;
+    border-bottom: 1px solid var(--ink); padding-bottom: 2px;
+  }
+  .hero-figure { position: relative; }
+  .hero-figure img { width: 100%; height: 460px; object-fit: cover; border-radius: 4px; }
+  .caption {
+    margin-top: 12px; display: flex; justify-content: space-between; gap: 16px;
+    font: 500 11px/1.5 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .1em;
+  }
+
+  /* ---------- index strip ---------- */
+  .strip { margin-top: 72px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .strip .wrap { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .cell { padding: 26px 0; }
+  .cell + .cell { border-left: 1px solid var(--line); padding-left: 28px; }
+  .cell b { display: block; font-family: var(--serif); font-size: 34px; font-weight: 400; letter-spacing: -.02em; }
+  .cell span { font: 500 11px/1.4 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+
+  /* ---------- section headers ---------- */
+  section { padding: 96px 0; }
+  .head { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; margin-bottom: 44px; }
+  h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(30px, 4vw, 46px); letter-spacing: -.025em; margin: 0; }
+  .head .note { font: 500 11px/1.5 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+
+  /* ---------- work grid ---------- */
+  .work { display: grid; grid-template-columns: 1.2fr .8fr; gap: 20px; }
+  .work .col { display: grid; gap: 20px; align-content: start; }
+  .card { position: relative; overflow: hidden; border-radius: 4px; background: var(--paper-2); }
+  .card img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s ease; }
+  .card:hover img { transform: scale(1.03); }
+  .card.tall img { height: 560px; }
+  .card.short img { height: 268px; }
+  .card .meta {
+    position: absolute; inset: auto 0 0 0; padding: 18px 20px;
+    display: flex; justify-content: space-between; align-items: end; gap: 12px;
+    background: linear-gradient(to top, rgba(10,8,6,.72), transparent);
+    color: #fff;
+  }
+  .card .meta b { font-family: var(--serif); font-weight: 400; font-size: 20px; }
+  .card .meta span { font: 500 10px/1 var(--mono); text-transform: uppercase; letter-spacing: .12em; opacity: .8; }
+
+  /* ---------- quote ---------- */
+  .quote { background: var(--ink); color: var(--paper); }
+  .quote .wrap { display: grid; grid-template-columns: 1fr 320px; gap: 56px; align-items: center; }
+  blockquote {
+    margin: 0; font-family: var(--serif); font-size: clamp(24px, 3.2vw, 38px);
+    line-height: 1.22; letter-spacing: -.02em;
+  }
+  blockquote em { color: #e9b89f; font-style: italic; }
+  .who { margin-top: 26px; display: flex; align-items: center; gap: 14px; }
+  .who img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+  .who b { display: block; font-size: 14px; }
+  .who span { font: 500 11px/1.4 var(--mono); opacity: .6; text-transform: uppercase; letter-spacing: .1em; }
+  .quote figure { margin: 0; }
+  .quote figure img { width: 100%; height: 320px; object-fit: cover; border-radius: 4px; }
+
+  /* ---------- services ---------- */
+  .rows { border-top: 1px solid var(--line); }
+  .row {
+    display: grid; grid-template-columns: 64px 1.1fr 1.6fr auto;
+    gap: 24px; align-items: baseline;
+    padding: 26px 0; border-bottom: 1px solid var(--line);
+  }
+  .row .n { font: 500 11px/1 var(--mono); color: var(--accent); }
+  .row h3 { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 24px; letter-spacing: -.01em; }
+  .row p { margin: 0; color: var(--muted); font-size: 15px; }
+  .row .tag { font: 500 10px/1 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+
+  /* ---------- cta ---------- */
+  .cta { background: var(--accent-soft); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .cta .wrap { display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
+  .cta h2 { max-width: 16ch; }
+  .cta .actions { display: flex; gap: 12px; }
+  .btn {
+    display: inline-flex; align-items: center; padding: 13px 22px; border-radius: 999px;
+    font: 600 14px/1 var(--sans); text-decoration: none; border: 1px solid var(--ink);
+  }
+  .btn.solid { background: var(--ink); color: var(--paper); }
+  .btn.line { color: var(--ink); }
+
+  /* ---------- footer ---------- */
+  footer { padding: 56px 0 72px; color: var(--muted); font-size: 13px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: end; }
+  footer .big { font-family: var(--serif); font-size: 20px; color: var(--ink); }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--ink); }
+
+  @media (max-width: 900px) {
+    .hero-grid, .work, .quote .wrap { grid-template-columns: 1fr; }
+    .strip .wrap { grid-template-columns: repeat(2, 1fr); }
+    .cell:nth-child(3) { border-left: 0; padding-left: 0; }
+    .row { grid-template-columns: 40px 1fr; }
+    .row p, .row .tag { grid-column: 2; }
+    .hero-figure img { height: 340px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="wrap">
+    <div class="wordmark">Atelier<span>·</span>Nord</div>
+    <nav>
+      <a href="#work">Work</a>
+      <a href="#studio">Studio</a>
+      <a href="#services">Services</a>
+      <a href="index.html">← swarm demo</a>
+    </nav>
+    <a class="pill" href="#contact"><span class="dot"></span> Taking projects for 2027</a>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <div class="kicker">Architecture & interiors · Oslo</div>
+        <h1>Rooms that hold <em>the light</em> a little longer.</h1>
+        <p class="lede">
+          We design houses, galleries and public rooms around one idea: a building should
+          feel inevitable once you are standing inside it.
+        </p>
+        <div class="hero-actions">
+          <a class="pill" href="#work">See selected work</a>
+          <a class="link" href="#studio">Read the studio notes</a>
+        </div>
+      </div>
+      <figure class="hero-figure">
+        <img src="https://picsum.photos/seed/atelier-hero/900/1100" alt="Nordic house at dusk">
+        <div class="caption"><span>Fjord House</span><span>2025 · 240 m²</span></div>
+      </figure>
+    </div>
+  </div>
+
+  <div class="strip">
+    <div class="wrap">
+      <div class="cell"><b>24</b><span>built projects</span></div>
+      <div class="cell"><b>11</b><span>years of practice</span></div>
+      <div class="cell"><b>6</b><span>awards</span></div>
+      <div class="cell"><b>3</b><span>countries</span></div>
+    </div>
+  </div>
+</header>
+
+<section id="work">
+  <div class="wrap">
+    <div class="head">
+      <h2>Selected work</h2>
+      <div class="note">2022 — 2026</div>
+    </div>
+    <div class="work">
+      <div class="col">
+        <article class="card tall">
+          <img src="https://picsum.photos/seed/atelier-a/900/1200" alt="">
+          <div class="meta"><b>Fjord House</b><span>Residential · 2025</span></div>
+        </article>
+        <article class="card short">
+          <img src="https://picsum.photos/seed/atelier-b/900/600" alt="">
+          <div class="meta"><b>Gallery Vika</b><span>Cultural · 2024</span></div>
+        </article>
+      </div>
+      <div class="col">
+        <article class="card short">
+          <img src="https://picsum.photos/seed/atelier-c/900/600" alt="">
+          <div class="meta"><b>Kafé Nord</b><span>Interior · 2026</span></div>
+        </article>
+        <article class="card tall">
+          <img src="https://picsum.photos/seed/atelier-d/900/1200" alt="">
+          <div class="meta"><b>Reading Room</b><span>Public · 2023</span></div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="quote" id="studio">
+  <div class="wrap">
+    <div>
+      <blockquote>
+        “They removed everything that was not the room, and the room turned out to be
+        <em>enormous</em>.”
+      </blockquote>
+      <div class="who">
+        <img src="https://picsum.photos/seed/atelier-face/120/120" alt="">
+        <div><b>Ingrid Halvorsen</b><span>Client · Fjord House</span></div>
+      </div>
+    </div>
+    <figure>
+      <img src="https://picsum.photos/seed/atelier-e/700/900" alt="">
+    </figure>
+  </div>
+</section>
+
+<section id="services">
+  <div class="wrap">
+    <div class="head">
+      <h2>What we do</h2>
+      <div class="note">Four disciplines, one team</div>
+    </div>
+    <div class="rows">
+      <div class="row"><div class="n">01</div><h3>Architecture</h3><p>New builds, extensions and conversions, from the first sketch to the last hinge.</p><div class="tag">Concept → Site</div></div>
+      <div class="row"><div class="n">02</div><h3>Interiors</h3><p>Materials, light and furniture chosen as one system rather than a list.</p><div class="tag">Detail → Delivery</div></div>
+      <div class="row"><div class="n">03</div><h3>Public rooms</h3><p>Galleries, libraries and cafés designed for people who stay longer than planned.</p><div class="tag">Brief → Opening</div></div>
+      <div class="row"><div class="n">04</div><h3>Consulting</h3><p>Second opinions, feasibility studies and competition entries with studios abroad.</p><div class="tag">Short engagements</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta" id="contact">
+  <div class="wrap">
+    <h2>Tell us about the room you keep thinking about.</h2>
+    <div class="actions">
+      <a class="btn solid" href="mailto:studio@atelier-nord.example">Start a project</a>
+      <a class="btn line" href="#work">Browse the archive</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <div class="big">Atelier Nord</div>
+      <div>Storgata 14, 0155 Oslo · studio@atelier-nord.example</div>
+    </div>
+    <div>
+      A fictional studio, built to test <a href="index.html">swarm-rebuild</a>.
+    </div>
+  </div>
+</footer>
+
+<script type="module">
+  import { createSwarm } from "../dist/index.js";
+
+  createSwarm({ trigger: "load", autoScroll: true, speed: 1.6 });
+</script>
+</body>
+</html>
