@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>swarm-rebuild demo</title>
+<style>
+  :root {
+    --bg: #fbfaf8;
+    --ink: #16161a;
+    --muted: #6b6b76;
+    --line: #e6e3dc;
+    --accent: #0d99ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 32px; }
+  header.hero { padding: 120px 0 80px; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font: 600 12px/1 ui-monospace, "SF Mono", monospace;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+    margin-bottom: 24px;
+  }
+  h1 { font-size: 64px; line-height: 1.05; letter-spacing: -0.03em; margin: 0 0 24px; max-width: 15ch; }
+  h1 em { font-style: normal; color: var(--accent); }
+  p.lede { font-size: 20px; color: var(--muted); max-width: 56ch; margin: 0 0 40px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: 12px 20px; border-radius: 10px;
+    background: var(--ink); color: #fff; text-decoration: none;
+    font-weight: 600; font-size: 14px;
+  }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  section { padding: 88px 0; border-bottom: 1px solid var(--line); }
+  h2 { font-size: 34px; letter-spacing: -0.02em; margin: 0 0 16px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 40px; }
+  .card {
+    background: #fff; border: 1px solid var(--line); border-radius: 14px;
+    padding: 24px; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+  .card h3 { margin: 0 0 8px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; }
+  .badge {
+    display: inline-block; padding: 3px 8px; border-radius: 999px;
+    background: #eaf5ff; color: #0670c4; font: 600 11px/1.6 system-ui, sans-serif;
+    margin-bottom: 12px;
+  }
+  blockquote {
+    margin: 0; padding: 24px 28px; border-left: 3px solid var(--accent);
+    background: #fff; border-radius: 0 12px 12px 0; font-size: 18px;
+  }
+  footer { padding: 64px 0 120px; color: var(--muted); font-size: 14px; }
+  .stack { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+  .stack span {
+    padding: 6px 12px; border-radius: 999px; background: #fff;
+    border: 1px solid var(--line); font-size: 13px;
+  }
+  @media (max-width: 720px) {
+    h1 { font-size: 40px; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">swarm-rebuild</div>
+      <h1>Your page, rebuilt by a <em>swarm of cursors</em>.</h1>
+      <p class="lede">
+        The page wipes to a blank canvas, then a crew of multiplayer cursors
+        draws the boxes, types the text and drops the images back in, live.
+      </p>
+      <div class="row">
+        <a class="btn" href="#how">How it works</a>
+        <a class="btn ghost" href="#api">API</a>
+      </div>
+    </header>
+
+    <section id="how">
+      <h2>Four stages, one frame loop</h2>
+      <div class="grid">
+        <article class="card">
+          <div class="badge">01</div>
+          <h3>Snapshot</h3>
+          <p>The live DOM is walked once and turned into a flat blueprint of boxes, text runs and media.</p>
+        </article>
+        <article class="card">
+          <div class="badge">02</div>
+          <h3>Blank</h3>
+          <p>A shadow-root overlay covers the page with its own background. Nothing leaks in.</p>
+        </article>
+        <article class="card">
+          <div class="badge">03</div>
+          <h3>Rebuild</h3>
+          <p>Agents claim tasks top-down, drag rects, type text and fade media back in.</p>
+        </article>
+        <article class="card">
+          <div class="badge">04</div>
+          <h3>Hand off</h3>
+          <p>The overlay fades out and the real, interactive page takes over. No clone left behind.</p>
+        </article>
+        <article class="card">
+          <div class="badge">05</div>
+          <h3>Respect</h3>
+          <p>prefers-reduced-motion gets a calm cross-fade. Esc always exits.</p>
+        </article>
+        <article class="card">
+          <div class="badge">06</div>
+          <h3>Portable</h3>
+          <p>One ESM import, no dependencies, no build step for consumers. Works on any page.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="api">
+      <h2>One call</h2>
+      <blockquote>
+        <code>createSwarm({ trigger: "load", autoScroll: true })</code>
+      </blockquote>
+      <div class="stack">
+        <span>TypeScript</span><span>0 dependency</span><span>shadow DOM</span>
+        <span>IntersectionObserver</span><span>reduced-motion</span><span>MIT</span>
+      </div>
+    </section>
+
+    <footer>
+      Built as a tribute to Joel Califa's Swarm and the Swarm Rebuild extension.
+    </footer>
+  </div>
+
+  <script type="module">
+    import { createSwarm } from "../dist/index.js";
+
+    const params = new URLSearchParams(location.search);
+    if (!params.has("off")) {
+      window.__swarm = createSwarm({
+        trigger: "load",
+        autoScroll: true,
+        speed: 1.6,
+        onComplete: () => console.log("[demo] rebuilt"),
+      });
+    }
+  </script>
+</body>
+</html>

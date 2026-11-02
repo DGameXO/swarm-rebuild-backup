@@ -1,0 +1,58 @@
+{
+  "name": "swarm-rebuild",
+  "version": "0.1.0",
+  "description": "Wipe a page to a blank canvas and let a swarm of multiplayer cursors rebuild it, live.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "keywords": [
+    "animation",
+    "dom",
+    "cursor",
+    "swarm",
+    "canvas",
+    "effect",
+    "portfolio"
+  ],
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "demo": "vite demo --open",
+    "format": "prettier --write \"src/**/*.ts\" \"demo/**/*.{html,js}\"",
+    "format:check": "prettier --check \"src/**/*.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@typescript/typescript6": "^6.0.2",
+    "prettier": "^3.9.10",
+    "tsup": "^9.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/MaximeBoulle/Swarm-Rebuild.git"
+  },
+  "homepage": "https://github.com/MaximeBoulle/Swarm-Rebuild#readme",
+  "bugs": {
+    "url": "https://github.com/MaximeBoulle/Swarm-Rebuild/issues"
+  },
+  "author": "Maxime Boulle"
+}

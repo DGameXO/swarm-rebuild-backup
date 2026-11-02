@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-label="swarm-rebuild">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0d12"/>
+      <stop offset="1" stop-color="#141824"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5b8cff"/>
+      <stop offset="0.5" stop-color="#a259ff"/>
+      <stop offset="1" stop-color="#1abcfe"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="18" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="320" fill="url(#bg)"/>
+  <rect width="1200" height="320" fill="url(#grid)"/>
+  <circle cx="1010" cy="70" r="150" fill="#a259ff" opacity="0.13" filter="url(#glow)"/>
+  <circle cx="180" cy="300" r="140" fill="#5b8cff" opacity="0.12" filter="url(#glow)"/>
+
+  <g transform="translate(72 96)">
+    <text x="0" y="46" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="58" font-weight="800" letter-spacing="-2.4" fill="#ffffff">swarm</text>
+    <text x="182" y="46" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="58" font-weight="800" letter-spacing="-2.4" fill="url(#accent)">-rebuild</text>
+    <text x="2" y="86" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="19" fill="#9aa3b8">Wipe a page to a blank canvas. Watch a swarm of cursors build it back.</text>
+    <g transform="translate(2 112)" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">
+      <rect x="0" y="0" width="120" height="26" rx="13" fill="#ffffff" fill-opacity="0.06"/>
+      <text x="14" y="17" fill="#c9d1e6">TypeScript</text>
+      <rect x="130" y="0" width="132" height="26" rx="13" fill="#ffffff" fill-opacity="0.06"/>
+      <text x="144" y="17" fill="#c9d1e6">0 dependencies</text>
+      <rect x="272" y="0" width="112" height="26" rx="13" fill="#ffffff" fill-opacity="0.06"/>
+      <text x="286" y="17" fill="#c9d1e6">shadow DOM</text>
+    </g>
+  </g>
+
+  <g transform="translate(760 40)">
+    <g transform="translate(0 20)">
+      <path d="M4.6 3.9C4.2 3.1 4.9 2.4 5.7 2.8L20.6 9.4C21.5 9.8 21.4 11.1 20.4 11.3L13.9 12.9C13.4 13 13 13.4 12.9 13.9L11.3 20.4C11.1 21.4 9.8 21.5 9.4 20.6Z" fill="#F24E1E" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="26" y="14" width="52" height="20" rx="5" fill="#F24E1E"/>
+      <text x="34" y="28" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#fff">Ada</text>
+    </g>
+    <g transform="translate(140 96)">
+      <path d="M4.6 3.9C4.2 3.1 4.9 2.4 5.7 2.8L20.6 9.4C21.5 9.8 21.4 11.1 20.4 11.3L13.9 12.9C13.4 13 13 13.4 12.9 13.9L11.3 20.4C11.1 21.4 9.8 21.5 9.4 20.6Z" fill="#1ABCFE" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="26" y="14" width="62" height="20" rx="5" fill="#1ABCFE"/>
+      <text x="34" y="28" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#fff">Grace</text>
+    </g>
+    <g transform="translate(44 150)">
+      <path d="M4.6 3.9C4.2 3.1 4.9 2.4 5.7 2.8L20.6 9.4C21.5 9.8 21.4 11.1 20.4 11.3L13.9 12.9C13.4 13 13 13.4 12.9 13.9L11.3 20.4C11.1 21.4 9.8 21.5 9.4 20.6Z" fill="#0ACF83" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="26" y="14" width="46" height="20" rx="5" fill="#0ACF83"/>
+      <text x="34" y="28" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#fff">Ken</text>
+    </g>
+    <g transform="translate(210 186)">
+      <path d="M4.6 3.9C4.2 3.1 4.9 2.4 5.7 2.8L20.6 9.4C21.5 9.8 21.4 11.1 20.4 11.3L13.9 12.9C13.4 13 13 13.4 12.9 13.9L11.3 20.4C11.1 21.4 9.8 21.5 9.4 20.6Z" fill="#A259FF" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="26" y="14" width="58" height="20" rx="5" fill="#A259FF"/>
+      <text x="34" y="28" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#fff">Radia</text>
+    </g>
+    <g transform="translate(300 36)">
+      <path d="M4.6 3.9C4.2 3.1 4.9 2.4 5.7 2.8L20.6 9.4C21.5 9.8 21.4 11.1 20.4 11.3L13.9 12.9C13.4 13 13 13.4 12.9 13.9L11.3 20.4C11.1 21.4 9.8 21.5 9.4 20.6Z" fill="#FFC700" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="26" y="14" width="44" height="20" rx="5" fill="#FFC700"/>
+      <text x="34" y="28" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#241a00">Joan</text>
+    </g>
+  </g>
+</svg>
