@@ -23,9 +23,10 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm run api-report:check
+      # Trusted Publishing: npm exchanges the OIDC token for a short-lived
+      # credential. No NPM_TOKEN secret required once the publisher is
+      # configured on npmjs.com for this repository and workflow.
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - run: gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
