@@ -304,11 +304,6 @@ uses it, and degrades silently.
 - **Joel Califa** — [Swarm](https://califa.github.io/swarm-site/), the original
   self-building site. The cursor set, the swarm physics and the build
   choreography are his design.
-- **Dhvanil Patel** — [swarm-cursors](https://github.com/DhvanilPatel/swarm-cursors),
-  the extension that points that engine at any page.
-
-This project is a TypeScript port and packaging of that work, with the original
-authors' permission.
 
 ---
 

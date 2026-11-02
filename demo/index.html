@@ -3,149 +3,319 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>swarm-rebuild demo</title>
+<title>swarm-rebuild — your page, rebuilt by a swarm</title>
+<meta name="description" content="Wipe a page to a blank canvas and let a swarm of multiplayer cursors rebuild it, live. Zero-dependency TypeScript library.">
 <style>
   :root {
-    --bg: #fbfaf8;
-    --ink: #16161a;
-    --muted: #6b6b76;
-    --line: #e6e3dc;
-    --accent: #0d99ff;
+    --bg: #08090d;
+    --panel: #0f1117;
+    --panel-2: #12141c;
+    --line: #1e2130;
+    --ink: #eceef5;
+    --muted: #8b90a3;
+    --blue: #5b8cff;
+    --violet: #a259ff;
+    --cyan: #1abcfe;
+    --green: #0acf83;
+    --red: #f24822;
+    --radius: 16px;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0;
     background: var(--bg);
     color: var(--ink);
-    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    font: 16px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
-  .wrap { max-width: 980px; margin: 0 auto; padding: 0 32px; }
-  header.hero { padding: 120px 0 80px; border-bottom: 1px solid var(--line); }
-  .eyebrow {
-    font: 600 12px/1 ui-monospace, "SF Mono", monospace;
-    letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
-    margin-bottom: 24px;
+  .glow {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: .55;
+    background: radial-gradient(circle at center, currentColor 0%, transparent 68%);
   }
-  h1 { font-size: 64px; line-height: 1.05; letter-spacing: -0.03em; margin: 0 0 24px; max-width: 15ch; }
-  h1 em { font-style: normal; color: var(--accent); }
-  p.lede { font-size: 20px; color: var(--muted); max-width: 56ch; margin: 0 0 40px; }
-  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; position: relative; }
+
+  /* ---------- nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: blur(14px);
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    border-bottom: 1px solid var(--line);
+  }
+  nav .wrap { display: flex; align-items: center; gap: 28px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.02em; }
+  .mark {
+    width: 26px; height: 26px; border-radius: 8px;
+    background: conic-gradient(from 210deg, var(--blue), var(--violet), var(--cyan), var(--blue));
+  }
+  nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
+  nav a:hover { color: var(--ink); }
+  nav .links { display: flex; gap: 24px; margin-left: auto; }
   .btn {
-    display: inline-block; padding: 12px 20px; border-radius: 10px;
-    background: var(--ink); color: #fff; text-decoration: none;
-    font-weight: 600; font-size: 14px;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 18px; border-radius: 10px; border: 1px solid transparent;
+    font: 600 14px/1 system-ui, sans-serif; text-decoration: none; cursor: pointer;
+    transition: transform .15s ease, background .15s ease, border-color .15s ease;
   }
-  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
-  section { padding: 88px 0; border-bottom: 1px solid var(--line); }
-  h2 { font-size: 34px; letter-spacing: -0.02em; margin: 0 0 16px; }
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 40px; }
+  .btn:hover { transform: translateY(-1px); }
+  .btn.primary { background: linear-gradient(135deg, var(--blue), var(--violet)); color: #fff; }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn.ghost:hover { border-color: #333a52; }
+
+  /* ---------- hero ---------- */
+  header { position: relative; padding: 96px 0 64px; overflow: hidden; }
+  header .glow.a { width: 640px; height: 640px; color: #2b3fa8; top: -240px; right: -140px; }
+  header .glow.b { width: 520px; height: 520px; color: #5b1fa8; bottom: -280px; left: -180px; opacity: .4; }
+  .eyebrow {
+    font: 600 12px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+    color: var(--blue); margin-bottom: 22px;
+  }
+  h1 {
+    font-size: clamp(42px, 7vw, 76px); line-height: 1.02; letter-spacing: -.04em;
+    margin: 0 0 24px; max-width: 16ch;
+  }
+  h1 .grad {
+    background: linear-gradient(100deg, var(--blue), var(--violet) 55%, var(--cyan));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .lede { font-size: 19px; color: var(--muted); max-width: 58ch; margin: 0 0 36px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .hint { font: 500 13px/1 var(--mono); color: #5f6579; margin-left: 6px; }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    margin-top: 72px; background: var(--line); border: 1px solid var(--line);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .stat { background: var(--panel); padding: 24px 22px; }
+  .stat b { display: block; font-size: 28px; letter-spacing: -.02em; }
+  .stat span { color: var(--muted); font-size: 13px; }
+
+  /* ---------- sections ---------- */
+  section { padding: 88px 0; border-top: 1px solid var(--line); position: relative; }
+  .kicker { font: 600 12px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+  h2 { font-size: clamp(28px, 4vw, 42px); letter-spacing: -.03em; margin: 14px 0 16px; }
+  .sub { color: var(--muted); max-width: 62ch; margin: 0 0 44px; }
+
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .step {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 22px; position: relative; overflow: hidden;
+  }
+  .step::after {
+    content: attr(data-n); position: absolute; right: 14px; top: 6px;
+    font: 800 54px/1 var(--mono); color: #fff; opacity: .04;
+  }
+  .step h3 { margin: 0 0 8px; font-size: 16px; letter-spacing: -.01em; }
+  .step p { margin: 0; color: var(--muted); font-size: 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+
+  /* ---------- try it ---------- */
+  .try {
+    display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center;
+  }
+  .controls {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 22px;
+  }
+  .controls .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; }
+  .controls .row + .row { border-top: 1px solid var(--line); }
+  .controls label { font-size: 14px; color: var(--muted); }
+  .seg { display: flex; gap: 6px; background: #0b0d13; padding: 4px; border-radius: 10px; border: 1px solid var(--line); }
+  .seg button {
+    all: unset; cursor: pointer; padding: 7px 12px; border-radius: 7px;
+    font: 600 13px/1 var(--mono); color: var(--muted);
+  }
+  .seg button.on { background: #1b2130; color: var(--ink); }
+  .switch { display: flex; align-items: center; gap: 10px; }
+  .switch input { accent-color: var(--blue); width: 18px; height: 18px; }
+
+  pre {
+    margin: 0; padding: 22px; border-radius: var(--radius);
+    background: #0b0d13; border: 1px solid var(--line); overflow-x: auto;
+    font: 13px/1.7 var(--mono); color: #c9d1e6;
+  }
+  pre .k { color: var(--violet); }
+  pre .s { color: var(--green); }
+  pre .c { color: #5f6579; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .tabs span { font: 600 12px/1 var(--mono); color: var(--muted); padding: 6px 10px; border-radius: 7px; background: #0b0d13; border: 1px solid var(--line); }
+
+  /* ---------- features ---------- */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
   .card {
-    background: #fff; border: 1px solid var(--line); border-radius: 14px;
-    padding: 24px; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 24px; transition: border-color .2s ease, transform .2s ease;
   }
-  .card h3 { margin: 0 0 8px; font-size: 17px; }
+  .card:hover { border-color: #2c3348; transform: translateY(-2px); }
+  .card h3 { margin: 0 0 8px; font-size: 16px; }
   .card p { margin: 0; color: var(--muted); font-size: 14px; }
-  .badge {
-    display: inline-block; padding: 3px 8px; border-radius: 999px;
-    background: #eaf5ff; color: #0670c4; font: 600 11px/1.6 system-ui, sans-serif;
-    margin-bottom: 12px;
-  }
-  blockquote {
-    margin: 0; padding: 24px 28px; border-left: 3px solid var(--accent);
-    background: #fff; border-radius: 0 12px 12px 0; font-size: 18px;
-  }
-  footer { padding: 64px 0 120px; color: var(--muted); font-size: 14px; }
-  .stack { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
-  .stack span {
-    padding: 6px 12px; border-radius: 999px; background: #fff;
-    border: 1px solid var(--line); font-size: 13px;
-  }
-  @media (max-width: 720px) {
-    h1 { font-size: 40px; }
-    .grid { grid-template-columns: 1fr; }
+
+  /* ---------- footer ---------- */
+  footer { padding: 56px 0 80px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--ink); }
+
+  @media (max-width: 900px) {
+    .stats, .steps, .grid, .try { grid-template-columns: 1fr; }
+    nav .links { display: none; }
+    header { padding-top: 64px; }
   }
 </style>
 </head>
 <body>
+
+<nav>
   <div class="wrap">
-    <header class="hero">
-      <div class="eyebrow">swarm-rebuild</div>
-      <h1>Your page, rebuilt by a <em>swarm of cursors</em>.</h1>
-      <p class="lede">
-        The page wipes to a blank canvas, then a crew of multiplayer cursors
-        draws the boxes, types the text and drops the images back in, live.
-      </p>
-      <div class="row">
-        <a class="btn" href="#how">How it works</a>
-        <a class="btn ghost" href="#api">API</a>
-      </div>
-    </header>
-
-    <section id="how">
-      <h2>Four stages, one frame loop</h2>
-      <div class="grid">
-        <article class="card">
-          <div class="badge">01</div>
-          <h3>Snapshot</h3>
-          <p>The live DOM is walked once and turned into a flat blueprint of boxes, text runs and media.</p>
-        </article>
-        <article class="card">
-          <div class="badge">02</div>
-          <h3>Blank</h3>
-          <p>A shadow-root overlay covers the page with its own background. Nothing leaks in.</p>
-        </article>
-        <article class="card">
-          <div class="badge">03</div>
-          <h3>Rebuild</h3>
-          <p>Agents claim tasks top-down, drag rects, type text and fade media back in.</p>
-        </article>
-        <article class="card">
-          <div class="badge">04</div>
-          <h3>Hand off</h3>
-          <p>The overlay fades out and the real, interactive page takes over. No clone left behind.</p>
-        </article>
-        <article class="card">
-          <div class="badge">05</div>
-          <h3>Respect</h3>
-          <p>prefers-reduced-motion gets a calm cross-fade. Esc always exits.</p>
-        </article>
-        <article class="card">
-          <div class="badge">06</div>
-          <h3>Portable</h3>
-          <p>One ESM import, no dependencies, no build step for consumers. Works on any page.</p>
-        </article>
-      </div>
-    </section>
-
-    <section id="api">
-      <h2>One call</h2>
-      <blockquote>
-        <code>createSwarm({ trigger: "load", autoScroll: true })</code>
-      </blockquote>
-      <div class="stack">
-        <span>TypeScript</span><span>0 dependency</span><span>shadow DOM</span>
-        <span>IntersectionObserver</span><span>reduced-motion</span><span>MIT</span>
-      </div>
-    </section>
-
-    <footer>
-      Built as a tribute to Joel Califa's Swarm and the Swarm Rebuild extension.
-    </footer>
+    <div class="brand"><span class="mark"></span> swarm-rebuild</div>
+    <div class="links">
+      <a href="#how">How it works</a>
+      <a href="#try">Try it</a>
+      <a href="#api">API</a>
+      <a href="complex.html">Stress test</a>
+    </div>
+    <a class="btn ghost" href="https://github.com/MaximeBoulle/Swarm-Rebuild">GitHub</a>
   </div>
+</nav>
 
-  <script type="module">
-    import { createSwarm } from "../dist/index.js";
+<header>
+  <span class="glow a"></span>
+  <span class="glow b"></span>
+  <div class="wrap">
+    <div class="eyebrow">Zero-dependency · TypeScript · 33 kB</div>
+    <h1>Your page, rebuilt by a <span class="grad">swarm of cursors</span>.</h1>
+    <p class="lede">
+      The page wipes to a blank canvas, then a crew of multiplayer cursors draws the boxes,
+      types the text and drops the images back in, live. When it is whole again, the overlay
+      fades out and the real page takes over.
+    </p>
+    <div class="cta">
+      <button class="btn primary" id="replay">Replay the effect</button>
+      <a class="btn ghost" href="#how">How it works</a>
+      <span class="hint">press Esc to exit</span>
+    </div>
 
-    const params = new URLSearchParams(location.search);
-    if (!params.has("off")) {
-      window.__swarm = createSwarm({
-        trigger: "load",
-        autoScroll: true,
-        speed: 1.6,
-        onComplete: () => console.log("[demo] rebuilt"),
-      });
-    }
-  </script>
+    <div class="stats">
+      <div class="stat"><b>0</b><span>runtime dependencies</span></div>
+      <div class="stat"><b>33 kB</b><span>gzipped bundle</span></div>
+      <div class="stat"><b>4</b><span>item kinds</span></div>
+      <div class="stat"><b>100%</b><span>typed, no any</span></div>
+    </div>
+  </div>
+</header>
+
+<section id="how">
+  <div class="wrap">
+    <div class="kicker">Pipeline</div>
+    <h2>Four stages, one frame loop</h2>
+    <p class="sub">No canvas recording, no video, no screenshot of the page. The engine reads the live DOM and rebuilds it with real nodes inside a shadow root.</p>
+    <div class="steps">
+      <article class="step" data-n="1"><h3><span class="dot" style="background:var(--blue)"></span>Snapshot</h3><p>The DOM is walked once. Boxes, text runs, media, lines and repeated components become a flat blueprint.</p></article>
+      <article class="step" data-n="2"><h3><span class="dot" style="background:var(--violet)"></span>Blank</h3><p>A shadow-root overlay covers the page with its own background. A hidden scroll pass wakes lazy images.</p></article>
+      <article class="step" data-n="3"><h3><span class="dot" style="background:var(--cyan)"></span>Rebuild</h3><p>Agents claim tasks top-down, drag rects with a crosshair, type text with a caret and fade media in.</p></article>
+      <article class="step" data-n="4"><h3><span class="dot" style="background:var(--green)"></span>Hand off</h3><p>The overlay fades and the real, interactive page comes back. Esc exits at any moment.</p></article>
+    </div>
+  </div>
+</section>
+
+<section id="try">
+  <div class="wrap">
+    <div class="kicker">Playground</div>
+    <h2>Try it on this page</h2>
+    <p class="sub">Every control below triggers a fresh build of the page you are reading.</p>
+    <div class="try">
+      <div class="controls">
+        <div class="row">
+          <label>Build speed</label>
+          <div class="seg" id="speed">
+            <button data-speed="0.8">0.8×</button>
+            <button data-speed="1.4">1.4×</button>
+            <button data-speed="2.2" class="on">2.2×</button>
+          </div>
+        </div>
+        <div class="row">
+          <label>Auto-scroll</label>
+          <div class="switch"><input type="checkbox" id="auto" checked></div>
+        </div>
+        <div class="row">
+          <label>Replay</label>
+          <button class="btn primary" id="replay-2">Rebuild</button>
+        </div>
+      </div>
+      <pre><span class="c">// the whole API</span>
+<span class="k">import</span> { createSwarm } <span class="k">from</span> <span class="s">"swarm-rebuild"</span>;
+
+createSwarm({
+  trigger: <span class="s">"load"</span>,
+  autoScroll: <span class="k">true</span>,
+  speed: <span class="s">1.8</span>,
+});</pre>
+    </div>
+  </div>
+</section>
+
+<section id="api">
+  <div class="wrap">
+    <div class="kicker">Why it feels right</div>
+    <h2>Built like a library, not a demo</h2>
+    <p class="sub">The engine is the original Swarm Rebuild choreography, ported to TypeScript and packaged with a small, typed surface.</p>
+    <div class="grid">
+      <article class="card"><h3>Shadow DOM</h3><p>Your CSS cannot leak in, the engine's CSS cannot leak out.</p></article>
+      <article class="card"><h3>Real DOM</h3><p>Text is rebuilt as text. It wraps, selects and scales like the original.</p></article>
+      <article class="card"><h3>One frame loop</h3><p>Every cursor, task and layer is driven by a single requestAnimationFrame tick.</p></article>
+      <article class="card"><h3>Scroll-aware</h3><p>Tasks unlock top-down as the visitor scrolls, or let autoScroll drive the camera.</p></article>
+      <article class="card"><h3>Clean exit</h3><p>Esc, the HUD button or stop() removes the overlay and hands the page back.</p></article>
+      <article class="card"><h3>Typed end to end</h3><p>Item, Task, Agent and the overlay primitives are discriminated unions. No any.</p></article>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <strong>swarm-rebuild</strong> · MIT · built by
+      <a href="https://github.com/MaximeBoulle">Maxime Boulle</a>
+    </div>
+    <div>
+      A tribute to <a href="https://califa.github.io/swarm-site/">Swarm</a> by Joel Califa
+    </div>
+  </div>
+</footer>
+
+<script type="module">
+  import { createSwarm } from "../dist/index.js";
+
+  let current = null;
+  let speed = 1.8;
+  let autoScroll = true;
+
+  function run() {
+    current?.destroy();
+    current = createSwarm({ trigger: "load", autoScroll, speed });
+  }
+
+  document.querySelector("#replay")?.addEventListener("click", run);
+  document.querySelector("#replay-2")?.addEventListener("click", run);
+
+  document.querySelectorAll("#speed button").forEach((button) => {
+    button.addEventListener("click", () => {
+      speed = Number(button.dataset.speed);
+      document.querySelectorAll("#speed button").forEach((b) => b.classList.toggle("on", b === button));
+      run();
+    });
+  });
+
+  document.querySelector("#auto")?.addEventListener("change", (event) => {
+    autoScroll = event.target.checked;
+  });
+
+  run();
+</script>
 </body>
 </html>

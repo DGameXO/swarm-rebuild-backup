@@ -62,6 +62,10 @@ export class App {
   async run() {
     this.env = detectEnv();
     this.startScroll = window.scrollY;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      await this.reducedMotion();
+      return;
+    }
     const shotP = this.loadShot();
     this.view = new View(this.env);
     this.engine = new Engine(this.view);
@@ -123,6 +127,22 @@ export class App {
     if (wait > 0) await sleep(wait);
     if (this.dead) return;
     this.engine.start();
+  }
+
+  /** No cursors, no choreography: a single calm cross-fade. */
+  private async reducedMotion(): Promise<void> {
+    const view = new View(this.env);
+    view.bg.classList.add("on");
+    view.hud.classList.add("on");
+    view.status.textContent = "Rebuilding…";
+    await sleep(550);
+    view.host.style.setProperty("transition", "opacity .45s ease", "important");
+    view.host.style.setProperty("opacity", "0", "important");
+    await sleep(520);
+    view.host.remove();
+    this.complete = true;
+    this.dead = true;
+    this.options.onComplete?.();
   }
 
   async scan() {
